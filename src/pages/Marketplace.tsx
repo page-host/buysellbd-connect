@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, Facebook, Youtube, Instagram, Gamepad2, SlidersHorizontal, MoreHorizontal } from "lucide-react";
+import { Search, Facebook, Youtube, Instagram, Gamepad2, SlidersHorizontal, MoreHorizontal, PackageX } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -42,7 +42,7 @@ const Marketplace = () => {
     let query = supabase
       .from("listings")
       .select("*")
-      .eq("status", "active");
+      .in("status", ["active", "sold"]);
 
     if (category !== "all") {
       query = query.eq("category", category as any);
@@ -145,8 +145,8 @@ const Marketplace = () => {
                 return (
                   <motion.div key={listing.id} {...fadeUp} transition={{ delay: i * 0.05, duration: 0.3 }}>
                     <Link to={`/listing/${listing.id}`}>
-                      <div className="glass-card overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform">
-                        <div className="h-1.5 gradient-primary" />
+                      <div className={`glass-card overflow-hidden group cursor-pointer hover:-translate-y-1 transition-transform ${listing.status === 'sold' ? 'opacity-75' : ''}`}>
+                        <div className={`h-1.5 ${listing.status === 'sold' ? 'bg-muted-foreground/40' : 'gradient-primary'}`} />
                         <div className="p-5">
                           <div className="flex items-start justify-between mb-3">
                             <div className="flex items-center gap-2">
@@ -158,11 +158,18 @@ const Marketplace = () => {
                                 <h3 className="text-sm font-bold text-foreground line-clamp-1">{listing.title}</h3>
                               </div>
                             </div>
-                            {listing.verified && (
-                              <Badge variant="secondary" className="bg-success/10 text-success border-success/20 gap-1 text-xs">
-                                <ShieldCheck className="w-3 h-3" /> Verified
-                              </Badge>
-                            )}
+                            <div className="flex items-center gap-1">
+                              {listing.status === 'sold' && (
+                                <Badge variant="destructive" className="gap-1 text-xs">
+                                  <PackageX className="w-3 h-3" /> স্টকআউট
+                                </Badge>
+                              )}
+                              {listing.verified && (
+                                <Badge variant="secondary" className="bg-success/10 text-success border-success/20 gap-1 text-xs">
+                                  <ShieldCheck className="w-3 h-3" /> Verified
+                                </Badge>
+                              )}
+                            </div>
                           </div>
                           {listing.description && (
                             <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{listing.description}</p>
@@ -172,9 +179,15 @@ const Marketplace = () => {
                               <p className="text-xs text-muted-foreground">মূল্য</p>
                               <p className="text-lg font-extrabold text-primary">৳{Number(listing.price).toLocaleString()}</p>
                             </div>
-                            <Button size="sm" className="gradient-primary text-primary-foreground border-0">
-                              বিস্তারিত
-                            </Button>
+                            {listing.status === 'sold' ? (
+                              <Button size="sm" variant="outline" disabled className="text-muted-foreground">
+                                স্টকআউট
+                              </Button>
+                            ) : (
+                              <Button size="sm" className="gradient-primary text-primary-foreground border-0">
+                                বিস্তারিত
+                              </Button>
+                            )}
                           </div>
                         </div>
                       </div>

@@ -173,8 +173,8 @@ const ListingDetail = () => {
                 <p className="text-xs text-muted-foreground">মূল্য</p>
               </div>
 
-              {/* Seller info */}
-              {sellerProfile && (
+              {/* Seller info - hide when viewing own listing */}
+              {sellerProfile && user?.id !== listing.seller_id && (
                 <Link to={`/profile/${listing.seller_id}`} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 mb-6 hover:bg-secondary/50 transition-colors">
                   <Avatar className="w-10 h-10">
                     <AvatarImage src={sellerProfile.avatar_url || ""} />
