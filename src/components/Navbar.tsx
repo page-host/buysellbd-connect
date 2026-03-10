@@ -119,7 +119,7 @@ export function Navbar() {
           <img
             src={logo}
             alt="SAEM Logo"
-            className="h-12 w-auto object-contain mix-blend-multiply"
+            className="h-16 w-auto object-contain mix-blend-multiply"
           />
           <span className="text-2xl font-bold text-foreground tracking-tighter">SAEM</span>
         </Link>
