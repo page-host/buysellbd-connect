@@ -7,7 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
-import logo from "@/assets/logo.png";
+import logo from "@/assets/logo.svg";
 
 const navLinks = [
   { label: "হোম", href: "/" },
