@@ -119,9 +119,9 @@ export function Navbar() {
           <img
             src={logo}
             alt="SAEM Logo"
-            className="h-10 w-auto object-contain transition-transform duration-300 group-hover:scale-105"
+            className="h-12 w-auto object-contain mix-blend-multiply"
           />
-          <span className="text-xl font-bold text-foreground tracking-tight">SAEM</span>
+          <span className="text-2xl font-bold text-foreground tracking-tighter">SAEM</span>
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
