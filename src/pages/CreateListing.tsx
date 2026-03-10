@@ -18,11 +18,20 @@ const CreateListing = () => {
   const [title, setTitle] = useState("");
   const [description, setDescription] = useState("");
   const [category, setCategory] = useState("");
+  const [customCategory, setCustomCategory] = useState("");
   const [platformUrl, setPlatformUrl] = useState("");
-  const [followers, setFollowers] = useState("");
-  const [accountAge, setAccountAge] = useState("");
   const [price, setPrice] = useState("");
   const [loading, setLoading] = useState(false);
+  const [restricted, setRestricted] = useState(false);
+
+  // Check restriction
+  useState(() => {
+    if (user) {
+      supabase.from("profiles").select("is_restricted").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.is_restricted) setRestricted(true);
+      });
+    }
+  });
 
   if (!user) {
     return (
@@ -37,10 +46,26 @@ const CreateListing = () => {
     );
   }
 
+  if (restricted) {
+    return (
+      <div className="min-h-screen bg-background">
+        <Navbar />
+        <div className="pt-24 container mx-auto px-4 text-center">
+          <h1 className="text-2xl font-bold text-destructive mb-4">🚫 অ্যাক্সেস সীমাবদ্ধ</h1>
+          <p className="text-muted-foreground mb-4">আপনার অ্যাকাউন্ট সীমাবদ্ধ করা হয়েছে। আপনি বাই-সেল বা লিস্টিং করতে পারবেন না।</p>
+        </div>
+      </div>
+    );
+  }
+
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (!category) {
       toast({ title: "ত্রুটি", description: "ক্যাটাগরি নির্বাচন করুন।", variant: "destructive" });
+      return;
+    }
+    if (category === "other" && !customCategory.trim()) {
+      toast({ title: "ত্রুটি", description: "অন্যান্য ক্যাটাগরির নাম লিখুন।", variant: "destructive" });
       return;
     }
     setLoading(true);
@@ -49,11 +74,10 @@ const CreateListing = () => {
       title: title.trim(),
       description: description.trim(),
       category: category as any,
+      custom_category: category === "other" ? customCategory.trim() : null,
       platform_url: platformUrl.trim() || null,
-      followers_count: followers.trim() || null,
-      account_age: accountAge.trim() || null,
       price: parseFloat(price),
-    });
+    } as any);
     setLoading(false);
     if (error) {
       toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
@@ -95,9 +119,17 @@ const CreateListing = () => {
                     <SelectItem value="youtube_channel">ইউটিউব চ্যানেল</SelectItem>
                     <SelectItem value="instagram">ইনস্টাগ্রাম</SelectItem>
                     <SelectItem value="gaming_id">গেমিং আইডি</SelectItem>
+                    <SelectItem value="other">অন্যান্য</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
+
+              {category === "other" && (
+                <div className="space-y-2">
+                  <Label htmlFor="customCat">ক্যাটাগরির নাম *</Label>
+                  <Input id="customCat" placeholder="যেমন: TikTok, Twitter, Domain" value={customCategory} onChange={(e) => setCustomCategory(e.target.value)} required maxLength={100} />
+                </div>
+              )}
 
               <div className="space-y-2">
                 <Label htmlFor="title">শিরোনাম *</Label>
@@ -107,17 +139,6 @@ const CreateListing = () => {
               <div className="space-y-2">
                 <Label htmlFor="desc">বিবরণ</Label>
                 <Textarea id="desc" placeholder="অ্যাকাউন্টের বিস্তারিত তথ্য লিখুন..." value={description} onChange={(e) => setDescription(e.target.value)} rows={4} maxLength={2000} />
-              </div>
-
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="followers">ফলোয়ার/সাবস্ক্রাইবার/লেভেল</Label>
-                  <Input id="followers" placeholder="যেমন: 125K" value={followers} onChange={(e) => setFollowers(e.target.value)} />
-                </div>
-                <div className="space-y-2">
-                  <Label htmlFor="age">অ্যাকাউন্টের বয়স</Label>
-                  <Input id="age" placeholder="যেমন: 4 বছর" value={accountAge} onChange={(e) => setAccountAge(e.target.value)} />
-                </div>
               </div>
 
               <div className="space-y-2">

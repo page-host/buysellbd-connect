@@ -47,6 +47,7 @@ export type Database = {
           category: Database["public"]["Enums"]["listing_category"]
           created_at: string
           currency: string
+          custom_category: string | null
           description: string
           followers_count: string | null
           id: string
@@ -64,6 +65,7 @@ export type Database = {
           category: Database["public"]["Enums"]["listing_category"]
           created_at?: string
           currency?: string
+          custom_category?: string | null
           description?: string
           followers_count?: string | null
           id?: string
@@ -81,6 +83,7 @@ export type Database = {
           category?: Database["public"]["Enums"]["listing_category"]
           created_at?: string
           currency?: string
+          custom_category?: string | null
           description?: string
           followers_count?: string | null
           id?: string
@@ -192,6 +195,7 @@ export type Database = {
           created_at: string
           full_name: string | null
           id: string
+          is_restricted: boolean | null
           phone: string | null
           updated_at: string
           user_id: string
@@ -201,6 +205,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          is_restricted?: boolean | null
           phone?: string | null
           updated_at?: string
           user_id: string
@@ -210,6 +215,7 @@ export type Database = {
           created_at?: string
           full_name?: string | null
           id?: string
+          is_restricted?: boolean | null
           phone?: string | null
           updated_at?: string
           user_id?: string
@@ -295,6 +301,7 @@ export type Database = {
         | "youtube_channel"
         | "instagram"
         | "gaming_id"
+        | "other"
       listing_status: "active" | "sold" | "pending" | "removed"
       order_status:
         | "pending"
@@ -440,6 +447,7 @@ export const Constants = {
         "youtube_channel",
         "instagram",
         "gaming_id",
+        "other",
       ],
       listing_status: ["active", "sold", "pending", "removed"],
       order_status: [

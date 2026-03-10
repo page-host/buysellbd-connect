@@ -11,14 +11,16 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Facebook, Youtube, Instagram, Gamepad2, ShieldCheck, Users, Clock, ArrowLeft, Wallet, AlertTriangle } from "lucide-react";
+import { Facebook, Youtube, Instagram, Gamepad2, ShieldCheck, Wallet, ArrowLeft, AlertTriangle, MoreHorizontal, PackageX } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 
 const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
   facebook_page: { icon: <Facebook className="w-6 h-6" />, label: "ফেসবুক পেজ", color: "#1877F2" },
   youtube_channel: { icon: <Youtube className="w-6 h-6" />, label: "ইউটিউব চ্যানেল", color: "#FF0000" },
   instagram: { icon: <Instagram className="w-6 h-6" />, label: "ইনস্টাগ্রাম", color: "#E4405F" },
   gaming_id: { icon: <Gamepad2 className="w-6 h-6" />, label: "গেমিং আইডি", color: "#9146FF" },
+  other: { icon: <MoreHorizontal className="w-6 h-6" />, label: "অন্যান্য", color: "#6B7280" },
 };
 
 const paymentMethods = [
@@ -34,25 +36,40 @@ const ListingDetail = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [listing, setListing] = useState<any>(null);
+  const [sellerProfile, setSellerProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
   const [orderDialog, setOrderDialog] = useState(false);
   const [paymentMethod, setPaymentMethod] = useState("");
   const [paymentRef, setPaymentRef] = useState("");
   const [ordering, setOrdering] = useState(false);
+  const [restricted, setRestricted] = useState(false);
 
   useEffect(() => {
     if (id) fetchListing();
   }, [id]);
 
+  useEffect(() => {
+    if (user) {
+      supabase.from("profiles").select("is_restricted").eq("user_id", user.id).maybeSingle().then(({ data }) => {
+        if (data?.is_restricted) setRestricted(true);
+      });
+    }
+  }, [user]);
+
   const fetchListing = async () => {
     const { data } = await supabase.from("listings").select("*").eq("id", id).single();
     setListing(data);
+    if (data) {
+      const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", data.seller_id).maybeSingle();
+      setSellerProfile(profile);
+    }
     setLoading(false);
   };
 
   const handleOrder = async () => {
-    if (!user) {
-      navigate("/login");
+    if (!user) { navigate("/login"); return; }
+    if (restricted) {
+      toast({ title: "সীমাবদ্ধ", description: "আপনার অ্যাকাউন্ট সীমাবদ্ধ করা হয়েছে।", variant: "destructive" });
       return;
     }
     if (!paymentMethod || !paymentRef.trim()) {
@@ -73,7 +90,7 @@ const ListingDetail = () => {
     if (error) {
       toast({ title: "অর্ডার ব্যর্থ", description: error.message, variant: "destructive" });
     } else {
-      toast({ title: "অর্ডার সফল!", description: "আপনার পেমেন্ট ভেরিফাই করা হবে। অনুগ্রহ করে অপেক্ষা করুন।" });
+      toast({ title: "অর্ডার সফল!", description: "আপনার পেমেন্ট ভেরিফাই করা হবে।" });
       setOrderDialog(false);
       setPaymentRef("");
     }
@@ -106,8 +123,13 @@ const ListingDetail = () => {
     );
   }
 
-  const meta = categoryMeta[listing.category] || categoryMeta.facebook_page;
+  const rawMeta = categoryMeta[listing.category] || categoryMeta.other;
+  const meta = {
+    ...rawMeta,
+    label: listing.category === 'other' && listing.custom_category ? listing.custom_category : rawMeta.label,
+  };
   const selectedPayment = paymentMethods.find((p) => p.value === paymentMethod);
+  const isStockOut = listing.status === 'sold';
 
   return (
     <div className="min-h-screen bg-background">
@@ -134,29 +156,36 @@ const ListingDetail = () => {
                         <ShieldCheck className="w-3 h-3" /> Verified
                       </Badge>
                     )}
+                    {isStockOut && (
+                      <Badge variant="destructive" className="gap-1 text-xs">
+                        <PackageX className="w-3 h-3" /> স্টকআউট
+                      </Badge>
+                    )}
                   </div>
                   <h1 className="text-2xl font-extrabold text-foreground">{listing.title}</h1>
                 </div>
               </div>
 
-              {/* Stats */}
-              <div className="grid grid-cols-2 sm:grid-cols-3 gap-4 mb-6">
-                <div className="text-center p-4 rounded-xl bg-secondary/50">
-                  <Users className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm font-bold text-foreground">{listing.followers_count || "N/A"}</p>
-                  <p className="text-xs text-muted-foreground">ফলোয়ার/লেভেল</p>
-                </div>
-                <div className="text-center p-4 rounded-xl bg-secondary/50">
-                  <Clock className="w-5 h-5 mx-auto mb-2 text-muted-foreground" />
-                  <p className="text-sm font-bold text-foreground">{listing.account_age || "N/A"}</p>
-                  <p className="text-xs text-muted-foreground">অ্যাকাউন্টের বয়স</p>
-                </div>
-                <div className="text-center p-4 rounded-xl bg-secondary/50">
-                  <Wallet className="w-5 h-5 mx-auto mb-2 text-primary" />
-                  <p className="text-xl font-extrabold text-primary">৳{Number(listing.price).toLocaleString()}</p>
-                  <p className="text-xs text-muted-foreground">মূল্য</p>
-                </div>
+              {/* Price */}
+              <div className="text-center p-4 rounded-xl bg-secondary/50 mb-6">
+                <Wallet className="w-5 h-5 mx-auto mb-2 text-primary" />
+                <p className="text-xl font-extrabold text-primary">৳{Number(listing.price).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground">মূল্য</p>
               </div>
+
+              {/* Seller info */}
+              {sellerProfile && (
+                <Link to={`/profile/${listing.seller_id}`} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 mb-6 hover:bg-secondary/50 transition-colors">
+                  <Avatar className="w-10 h-10">
+                    <AvatarImage src={sellerProfile.avatar_url || ""} />
+                    <AvatarFallback className="bg-primary/10 text-primary text-sm">{(sellerProfile.full_name || "?")[0]}</AvatarFallback>
+                  </Avatar>
+                  <div>
+                    <p className="text-sm font-semibold text-foreground">{sellerProfile.full_name || "বিক্রেতা"}</p>
+                    <p className="text-xs text-muted-foreground">বিক্রেতার প্রোফাইল দেখুন →</p>
+                  </div>
+                </Link>
+              )}
 
               {/* Description */}
               {listing.description && (
@@ -177,13 +206,19 @@ const ListingDetail = () => {
 
               {/* Buy button */}
               {user?.id !== listing.seller_id ? (
-                <Button
-                  size="lg"
-                  className="w-full gradient-primary text-primary-foreground border-0 font-bold text-lg h-14"
-                  onClick={() => user ? setOrderDialog(true) : navigate("/login")}
-                >
-                  এখনই কিনুন — ৳{Number(listing.price).toLocaleString()}
-                </Button>
+                isStockOut ? (
+                  <Button size="lg" className="w-full h-14 font-bold text-lg" disabled>
+                    <PackageX className="w-5 h-5 mr-2" /> স্টকআউট
+                  </Button>
+                ) : (
+                  <Button
+                    size="lg"
+                    className="w-full gradient-primary text-primary-foreground border-0 font-bold text-lg h-14"
+                    onClick={() => user ? setOrderDialog(true) : navigate("/login")}
+                  >
+                    এখনই কিনুন — ৳{Number(listing.price).toLocaleString()}
+                  </Button>
+                )
               ) : (
                 <div className="text-center p-4 rounded-xl bg-secondary/50">
                   <p className="text-sm text-muted-foreground">এটি আপনার নিজের লিস্টিং</p>
@@ -229,11 +264,7 @@ const ListingDetail = () => {
 
             <div className="space-y-2">
               <Label>ট্রানজেকশন আইডি / TxHash</Label>
-              <Input
-                placeholder="যেমন: TxID123456789"
-                value={paymentRef}
-                onChange={(e) => setPaymentRef(e.target.value)}
-              />
+              <Input placeholder="যেমন: TxID123456789" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} />
             </div>
 
             <div className="flex items-start gap-2 text-xs text-muted-foreground">

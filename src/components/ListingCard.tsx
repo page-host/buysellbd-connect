@@ -1,4 +1,4 @@
-import { ShieldCheck, Users, Clock, Star } from "lucide-react";
+import { ShieldCheck } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
 import { motion } from "framer-motion";
@@ -7,24 +7,16 @@ interface ListingCardProps {
   type: string;
   typeIcon: React.ReactNode;
   title: string;
-  followers: string;
-  age: string;
   price: string;
   verified: boolean;
-  rating: number;
-  image?: string;
 }
 
 export function ListingCard({
   type,
   typeIcon,
   title,
-  followers,
-  age,
   price,
   verified,
-  rating,
-  image,
 }: ListingCardProps) {
   return (
     <motion.div
@@ -32,9 +24,7 @@ export function ListingCard({
       transition={{ duration: 0.2 }}
       className="glass-card overflow-hidden group cursor-pointer"
     >
-      {/* Header stripe */}
       <div className="h-1.5 gradient-primary" />
-
       <div className="p-5">
         <div className="flex items-start justify-between mb-3">
           <div className="flex items-center gap-2">
@@ -56,24 +46,6 @@ export function ListingCard({
               Verified
             </Badge>
           )}
-        </div>
-
-        <div className="grid grid-cols-3 gap-3 mb-4">
-          <div className="text-center p-2 rounded-lg bg-secondary/50">
-            <Users className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
-            <p className="text-xs font-bold text-foreground">{followers}</p>
-            <p className="text-[10px] text-muted-foreground">ফলোয়ার</p>
-          </div>
-          <div className="text-center p-2 rounded-lg bg-secondary/50">
-            <Clock className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
-            <p className="text-xs font-bold text-foreground">{age}</p>
-            <p className="text-[10px] text-muted-foreground">বয়স</p>
-          </div>
-          <div className="text-center p-2 rounded-lg bg-secondary/50">
-            <Star className="w-3.5 h-3.5 mx-auto mb-1 text-accent" />
-            <p className="text-xs font-bold text-foreground">{rating}</p>
-            <p className="text-[10px] text-muted-foreground">রেটিং</p>
-          </div>
         </div>
 
         <div className="flex items-center justify-between">

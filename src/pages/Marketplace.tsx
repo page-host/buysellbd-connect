@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, Facebook, Youtube, Instagram, Gamepad2, SlidersHorizontal } from "lucide-react";
+import { Search, Facebook, Youtube, Instagram, Gamepad2, SlidersHorizontal, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,13 +9,14 @@ import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Users, Clock, Star } from "lucide-react";
+import { ShieldCheck, Wallet } from "lucide-react";
 
 const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
   facebook_page: { icon: <Facebook className="w-5 h-5" />, label: "ফেসবুক পেজ", color: "#1877F2" },
   youtube_channel: { icon: <Youtube className="w-5 h-5" />, label: "ইউটিউব চ্যানেল", color: "#FF0000" },
   instagram: { icon: <Instagram className="w-5 h-5" />, label: "ইনস্টাগ্রাম", color: "#E4405F" },
   gaming_id: { icon: <Gamepad2 className="w-5 h-5" />, label: "গেমিং আইডি", color: "#9146FF" },
+  other: { icon: <MoreHorizontal className="w-5 h-5" />, label: "অন্যান্য", color: "#6B7280" },
 };
 
 const fadeUp = {
@@ -100,6 +101,7 @@ const Marketplace = () => {
                   <SelectItem value="youtube_channel">ইউটিউব চ্যানেল</SelectItem>
                   <SelectItem value="instagram">ইনস্টাগ্রাম</SelectItem>
                   <SelectItem value="gaming_id">গেমিং আইডি</SelectItem>
+                  <SelectItem value="other">অন্যান্য</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={setSortBy}>
@@ -138,7 +140,8 @@ const Marketplace = () => {
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-5">
               {filtered.map((listing, i) => {
-                const meta = categoryMeta[listing.category] || categoryMeta.facebook_page;
+                const meta = categoryMeta[listing.category] || categoryMeta.other;
+                const displayLabel = listing.category === 'other' && listing.custom_category ? listing.custom_category : meta.label;
                 return (
                   <motion.div key={listing.id} {...fadeUp} transition={{ delay: i * 0.05, duration: 0.3 }}>
                     <Link to={`/listing/${listing.id}`}>
@@ -151,7 +154,7 @@ const Marketplace = () => {
                                 {meta.icon}
                               </div>
                               <div>
-                                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: meta.color }}>{meta.label}</p>
+                                <p className="text-xs font-semibold uppercase tracking-wider" style={{ color: meta.color }}>{displayLabel}</p>
                                 <h3 className="text-sm font-bold text-foreground line-clamp-1">{listing.title}</h3>
                               </div>
                             </div>
@@ -161,16 +164,9 @@ const Marketplace = () => {
                               </Badge>
                             )}
                           </div>
-                          <div className="grid grid-cols-2 gap-3 mb-4">
-                            <div className="text-center p-2 rounded-lg bg-secondary/50">
-                              <Users className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
-                              <p className="text-xs font-bold text-foreground">{listing.followers_count || "N/A"}</p>
-                            </div>
-                            <div className="text-center p-2 rounded-lg bg-secondary/50">
-                              <Clock className="w-3.5 h-3.5 mx-auto mb-1 text-muted-foreground" />
-                              <p className="text-xs font-bold text-foreground">{listing.account_age || "N/A"}</p>
-                            </div>
-                          </div>
+                          {listing.description && (
+                            <p className="text-xs text-muted-foreground line-clamp-2 mb-3">{listing.description}</p>
+                          )}
                           <div className="flex items-center justify-between">
                             <div>
                               <p className="text-xs text-muted-foreground">মূল্য</p>

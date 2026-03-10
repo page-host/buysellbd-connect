@@ -1,72 +1,21 @@
-import { Search, Facebook, Youtube, Instagram, Gamepad2, ShieldCheck, Lock, Banknote, Users, ArrowRight, TrendingUp } from "lucide-react";
+import { Search, Facebook, Youtube, Instagram, Gamepad2, ShieldCheck, Lock, Banknote, Users, ArrowRight, TrendingUp, MoreHorizontal } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { motion } from "framer-motion";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
-import { ListingCard } from "@/components/ListingCard";
 import { CategoryCard } from "@/components/CategoryCard";
 import { TrustBadge } from "@/components/TrustBadge";
-import { LiveTransaction } from "@/components/LiveTransaction";
 import { Link, useNavigate } from "react-router-dom";
 import { useState } from "react";
 import heroBg from "@/assets/hero-bg.jpg";
 
 const categories = [
-  { icon: Facebook, label: "ফেসবুক পেজ", count: 340, color: "#1877F2", slug: "facebook_page" },
-  { icon: Youtube, label: "ইউটিউব চ্যানেল", count: 215, color: "#FF0000", slug: "youtube_channel" },
-  { icon: Instagram, label: "ইনস্টাগ্রাম", count: 180, color: "#E4405F", slug: "instagram" },
-  { icon: Gamepad2, label: "গেমিং আইডি", count: 120, color: "#9146FF", slug: "gaming_id" },
-];
-
-const featuredListings = [
-  {
-    type: "Facebook Page",
-    typeIcon: <Facebook className="w-5 h-5" />,
-    title: "Tech News Bangladesh",
-    followers: "125K",
-    age: "4 বছর",
-    price: "৳45,000",
-    verified: true,
-    rating: 4.8,
-  },
-  {
-    type: "YouTube Channel",
-    typeIcon: <Youtube className="w-5 h-5" />,
-    title: "BD Gaming Zone",
-    followers: "89K",
-    age: "3 বছর",
-    price: "৳75,000",
-    verified: true,
-    rating: 4.9,
-  },
-  {
-    type: "Instagram",
-    typeIcon: <Instagram className="w-5 h-5" />,
-    title: "Fashion BD Official",
-    followers: "56K",
-    age: "2 বছর",
-    price: "৳22,000",
-    verified: false,
-    rating: 4.5,
-  },
-  {
-    type: "Gaming ID",
-    typeIcon: <Gamepad2 className="w-5 h-5" />,
-    title: "PUBG Conqueror Tier",
-    followers: "Level 75",
-    age: "2 বছর",
-    price: "৳8,500",
-    verified: true,
-    rating: 4.7,
-  },
-];
-
-const liveTransactions = [
-  { buyer: "রহিম", seller: "করিম", item: "FB Page - 50K", amount: "25,000", time: "5 মিনিট আগে" },
-  { buyer: "সুমন", seller: "জাহিদ", item: "YT Channel - 30K", amount: "40,000", time: "12 মিনিট আগে" },
-  { buyer: "তানভীর", seller: "মিনা", item: "IG Account - 20K", amount: "15,000", time: "25 মিনিট আগে" },
-  { buyer: "রাফি", seller: "সাকিব", item: "PUBG ID - Conqueror", amount: "7,500", time: "38 মিনিট আগে" },
+  { icon: Facebook, label: "ফেসবুক পেজ", count: 0, color: "#1877F2", slug: "facebook_page" },
+  { icon: Youtube, label: "ইউটিউব চ্যানেল", count: 0, color: "#FF0000", slug: "youtube_channel" },
+  { icon: Instagram, label: "ইনস্টাগ্রাম", count: 0, color: "#E4405F", slug: "instagram" },
+  { icon: Gamepad2, label: "গেমিং আইডি", count: 0, color: "#9146FF", slug: "gaming_id" },
+  { icon: MoreHorizontal, label: "অন্যান্য", count: 0, color: "#6B7280", slug: "other" },
 ];
 
 const trustFeatures = [
@@ -85,13 +34,6 @@ const trustFeatures = [
     title: "নিরাপদ পেমেন্ট",
     description: "বিকাশ, নগদ, রকেট এবং USDT/TRX পেমেন্ট মেথড সাপোর্ট।",
   },
-];
-
-const stats = [
-  { value: "১২,০০০+", label: "সক্রিয় লিস্টিং" },
-  { value: "৮,৫০০+", label: "সফল লেনদেন" },
-  { value: "৫,০০০+", label: "ভেরিফাইড সেলার" },
-  { value: "৯৯.৫%", label: "সন্তুষ্ট ক্রেতা" },
 ];
 
 const fadeUp = {
@@ -169,20 +111,6 @@ const Index = () => {
                 <ArrowRight className="w-4 h-4 ml-2" />
               </Button>
             </motion.div>
-
-            {/* Stats */}
-            <motion.div
-              {...fadeUp}
-              transition={{ delay: 0.4, duration: 0.5 }}
-              className="grid grid-cols-2 sm:grid-cols-4 gap-4"
-            >
-              {stats.map((stat) => (
-                <div key={stat.label} className="text-center p-3 rounded-xl bg-card/5 backdrop-blur-sm border border-border/10">
-                  <p className="text-xl font-extrabold text-accent">{stat.value}</p>
-                  <p className="text-xs" style={{ color: "hsl(220 14% 65%)" }}>{stat.label}</p>
-                </div>
-              ))}
-            </motion.div>
           </div>
         </div>
       </section>
@@ -194,7 +122,7 @@ const Index = () => {
             <h2 className="text-3xl font-extrabold text-foreground mb-3">ক্যাটাগরি ব্রাউজ করুন</h2>
             <p className="text-muted-foreground max-w-lg mx-auto">আপনার পছন্দের ক্যাটাগরি থেকে সেরা অ্যাকাউন্ট খুঁজে নিন</p>
           </motion.div>
-          <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+          <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
             {categories.map((cat, i) => (
               <motion.div key={cat.label} {...fadeUp} transition={{ delay: i * 0.1, duration: 0.4 }}>
                 <Link to={`/marketplace?category=${cat.slug}`}>
@@ -206,65 +134,23 @@ const Index = () => {
         </div>
       </section>
 
-      {/* Featured Listings */}
+      {/* Trust */}
       <section className="py-20 bg-secondary/30">
         <div className="container mx-auto px-4">
-          <motion.div {...fadeUp} className="flex items-center justify-between mb-12">
-            <div>
-              <h2 className="text-3xl font-extrabold text-foreground mb-2">ফিচার্ড লিস্টিং</h2>
-              <p className="text-muted-foreground">সর্বশেষ এবং সেরা অ্যাকাউন্টসমূহ</p>
-            </div>
-            <Link to="/marketplace">
-              <Button variant="outline" className="hidden sm:flex gap-2">
-                সব দেখুন <ArrowRight className="w-4 h-4" />
-              </Button>
-            </Link>
+          <motion.div {...fadeUp} className="text-center mb-12">
+            <h2 className="text-3xl font-extrabold text-foreground mb-3">কেন আমরা নিরাপদ?</h2>
+            <p className="text-muted-foreground">আপনার প্রতিটি লেনদেন সুরক্ষিত</p>
           </motion.div>
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-5">
-            {featuredListings.map((listing, i) => (
-              <motion.div key={listing.title} {...fadeUp} transition={{ delay: i * 0.1, duration: 0.4 }}>
-                <Link to="/marketplace">
-                  <ListingCard {...listing} />
-                </Link>
-              </motion.div>
+          <div className="grid md:grid-cols-3 gap-6">
+            {trustFeatures.map((f) => (
+              <TrustBadge key={f.title} {...f} />
             ))}
           </div>
         </div>
       </section>
 
-      {/* Trust & Live Transactions */}
-      <section className="py-20 bg-background">
-        <div className="container mx-auto px-4">
-          <div className="grid lg:grid-cols-2 gap-12">
-            {/* Trust */}
-            <motion.div {...fadeUp}>
-              <h2 className="text-3xl font-extrabold text-foreground mb-3">কেন আমরা নিরাপদ?</h2>
-              <p className="text-muted-foreground mb-8">আপনার প্রতিটি লেনদেন সুরক্ষিত</p>
-              <div className="space-y-4">
-                {trustFeatures.map((f) => (
-                  <TrustBadge key={f.title} {...f} />
-                ))}
-              </div>
-            </motion.div>
-
-            {/* Live Transactions */}
-            <motion.div {...fadeUp} transition={{ delay: 0.2, duration: 0.5 }}>
-              <div className="flex items-center gap-2 mb-6">
-                <div className="w-2.5 h-2.5 rounded-full bg-success animate-pulse" />
-                <h2 className="text-xl font-bold text-foreground">লাইভ লেনদেন</h2>
-              </div>
-              <div className="space-y-3">
-                {liveTransactions.map((tx, i) => (
-                  <LiveTransaction key={i} {...tx} />
-                ))}
-              </div>
-            </motion.div>
-          </div>
-        </div>
-      </section>
-
       {/* How it works */}
-      <section className="py-20 bg-secondary/30">
+      <section className="py-20 bg-background">
         <div className="container mx-auto px-4">
           <motion.div {...fadeUp} className="text-center mb-12">
             <h2 className="text-3xl font-extrabold text-foreground mb-3">কিভাবে কাজ করে?</h2>

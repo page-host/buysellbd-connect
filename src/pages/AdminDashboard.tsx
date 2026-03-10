@@ -10,8 +10,9 @@ import { Button } from "@/components/ui/button";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle } from "lucide-react";
+import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { OrderChat } from "@/components/OrderChat";
 
@@ -143,6 +144,16 @@ export default function AdminDashboard() {
     }
   };
 
+  const toggleRestriction = async (userId: string, currentlyRestricted: boolean | null) => {
+    const newVal = !currentlyRestricted;
+    const { error } = await supabase.from("profiles").update({ is_restricted: newVal }).eq("user_id", userId);
+    if (error) toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
+    else {
+      setProfiles(prev => prev.map(p => p.user_id === userId ? { ...p, is_restricted: newVal } : p));
+      toast({ title: newVal ? "🚫 ইউজার সীমাবদ্ধ করা হয়েছে" : "✅ সীমাবদ্ধতা সরানো হয়েছে" });
+    }
+  };
+
   const deleteMessage = async (id: string) => {
     const { error } = await supabase.from("contact_messages").delete().eq("id", id);
     if (error) toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
@@ -172,6 +183,7 @@ export default function AdminDashboard() {
   const totalRevenue = orders.filter(o => o.status === "completed").reduce((s, o) => s + Number(o.amount), 0);
   const pendingOrders = orders.filter(o => ["pending", "payment_submitted"].includes(o.status)).length;
   const activeListings = listings.filter(l => l.status === "active").length;
+  const openReports = reports.filter(r => r.status === 'open').length;
 
   return (
     <div className="min-h-screen bg-background">
@@ -183,21 +195,22 @@ export default function AdminDashboard() {
         </div>
 
         {/* Stats */}
-        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {[
             { label: "মোট অর্ডার", value: orders.length, icon: Package },
             { label: "পেন্ডিং অর্ডার", value: pendingOrders, icon: Package },
             { label: "সক্রিয় লিস্টিং", value: activeListings, icon: BarChart3 },
             { label: "মোট রেভিনিউ", value: `৳${totalRevenue.toLocaleString()}`, icon: BarChart3 },
+            { label: "ওপেন রিপোর্ট", value: openReports, icon: AlertTriangle },
           ].map((s, i) => (
             <Card key={i} className="bg-card border-border">
-              <CardContent className="p-6 flex items-center gap-4">
-                <div className="p-3 rounded-xl bg-primary/10">
-                  <s.icon className="w-6 h-6 text-primary" />
+              <CardContent className="p-5 flex items-center gap-3">
+                <div className="p-2.5 rounded-xl bg-primary/10">
+                  <s.icon className="w-5 h-5 text-primary" />
                 </div>
                 <div>
-                  <p className="text-sm text-muted-foreground">{s.label}</p>
-                  <p className="text-2xl font-bold text-foreground">{s.value}</p>
+                  <p className="text-xs text-muted-foreground">{s.label}</p>
+                  <p className="text-xl font-bold text-foreground">{s.value}</p>
                 </div>
               </CardContent>
             </Card>
@@ -376,6 +389,7 @@ export default function AdminDashboard() {
                             <TableHead>ফোন</TableHead>
                             <TableHead>যোগদান</TableHead>
                             <TableHead>রোল</TableHead>
+                            <TableHead>সীমাবদ্ধ</TableHead>
                           </TableRow>
                         </TableHeader>
                         <TableBody>
@@ -395,6 +409,19 @@ export default function AdminDashboard() {
                                     <SelectItem value="admin">Admin</SelectItem>
                                   </SelectContent>
                                 </Select>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Switch
+                                    checked={!!profile.is_restricted}
+                                    onCheckedChange={() => toggleRestriction(profile.user_id, profile.is_restricted)}
+                                  />
+                                  {profile.is_restricted && (
+                                    <Badge variant="destructive" className="text-xs gap-1">
+                                      <Ban className="w-3 h-3" /> সীমাবদ্ধ
+                                    </Badge>
+                                  )}
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
