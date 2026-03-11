@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import PublicProfile from "./pages/PublicProfile";
+import { SupportChat } from "./components/SupportChat";
 
 const queryClient = new QueryClient();
 
