@@ -64,6 +64,7 @@ export default function AdminDashboard() {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [supportChats, setSupportChats] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
