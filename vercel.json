@@ -13,6 +13,19 @@
           "value": "image/png"
         }
       ]
+    },
+    {
+      "source": "/(.*)",
+      "headers": [
+        {
+          "key": "Cache-Control",
+          "value": "public, max-age=0"
+        },
+        {
+          "key": "Accept-Ranges",
+          "value": "none"
+        }
+      ]
     }
   ]
 }
