@@ -83,13 +83,14 @@ export default function AdminDashboard() {
     if (!isAdmin) return;
     const load = async () => {
       setLoadingData(true);
-      const [o, l, p, r, m, rp] = await Promise.all([
+      const [o, l, p, r, m, rp, sp] = await Promise.all([
         supabase.from("orders").select("*").order("created_at", { ascending: false }),
         supabase.from("listings").select("*").order("created_at", { ascending: false }),
         supabase.from("profiles").select("*").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("*"),
         supabase.from("contact_messages").select("*").order("created_at", { ascending: false }),
         supabase.from("reports").select("*").order("created_at", { ascending: false }),
+        (supabase as any).from("support_messages").select("*").order("created_at", { ascending: true }),
       ]);
       setOrders(o.data || []);
       setListings(l.data || []);
@@ -97,6 +98,21 @@ export default function AdminDashboard() {
       setRoles(r.data || []);
       setMessages(m.data || []);
       setReports((rp.data as any[]) || []);
+      
+      // Group support messages by user_id
+      const allSupport = (sp.data as any[]) || [];
+      const grouped: Record<string, any[]> = {};
+      allSupport.forEach(msg => {
+        if (!grouped[msg.user_id]) grouped[msg.user_id] = [];
+        grouped[msg.user_id].push(msg);
+      });
+      setSupportChats(Object.entries(grouped).map(([userId, msgs]) => ({
+        userId,
+        messages: msgs,
+        unread: msgs.filter((m: any) => !m.is_read && m.sender_id === userId).length,
+        lastMessage: msgs[msgs.length - 1],
+      })));
+      
       setLoadingData(false);
     };
     load();
