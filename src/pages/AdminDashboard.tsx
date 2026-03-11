@@ -445,15 +445,27 @@ export default function AdminDashboard() {
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Switch
-                                    checked={!!profile.is_restricted}
-                                    onCheckedChange={() => toggleRestriction(profile.user_id, profile.is_restricted)}
-                                  />
-                                  {profile.is_restricted && (
-                                    <Badge variant="destructive" className="text-xs gap-1">
-                                      <Ban className="w-3 h-3" /> সীমাবদ্ধ
-                                    </Badge>
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={!!profile.is_restricted}
+                                      onCheckedChange={() => {
+                                        if (!profile.is_restricted) {
+                                          const reason = prompt("রেস্ট্রিকশনের কারণ লিখুন:");
+                                          if (reason) toggleRestriction(profile.user_id, profile.is_restricted, reason);
+                                        } else {
+                                          toggleRestriction(profile.user_id, profile.is_restricted);
+                                        }
+                                      }}
+                                    />
+                                    {profile.is_restricted && (
+                                      <Badge variant="destructive" className="text-xs gap-1">
+                                        <Ban className="w-3 h-3" /> সীমাবদ্ধ
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {profile.is_restricted && (profile as any).restriction_reason && (
+                                    <p className="text-[10px] text-destructive/80">কারণ: {(profile as any).restriction_reason}</p>
                                   )}
                                 </div>
                               </TableCell>
