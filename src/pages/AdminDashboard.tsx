@@ -259,6 +259,9 @@ export default function AdminDashboard() {
               <TabsTrigger value="reports" className="gap-1">
                 <AlertTriangle className="w-3.5 h-3.5" /> রিপোর্ট ({reports.length})
               </TabsTrigger>
+              <TabsTrigger value="support" className="gap-1">
+                <Headphones className="w-3.5 h-3.5" /> সাপোর্ট ({supportChats.reduce((s, c) => s + c.unread, 0)})
+              </TabsTrigger>
               <TabsTrigger value="messages">মেসেজ ({messages.length})</TabsTrigger>
             </TabsList>
 
