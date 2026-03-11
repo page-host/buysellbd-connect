@@ -1,6 +1,6 @@
 import { Link } from "react-router-dom";
 import { ShoppingBag } from "lucide-react";
-
+import logo from "@/assets/eye.png";
 export function Footer() {
   return (
     <footer className="bg-card border-t border-border">
@@ -8,10 +8,11 @@ export function Footer() {
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <div className="w-8 h-8 rounded-lg gradient-primary flex items-center justify-center">
-                <ShoppingBag className="w-4 h-4 text-primary-foreground" />
-              </div>
-              <span className="text-lg font-bold text-foreground">SAEM</span>
+              <img
+              src={logo}
+              alt="SAEM Logo"
+              className="h-20 w-auto object-contain mix-blend-multiply"
+              />
             </div>
             <p className="text-sm text-muted-foreground leading-relaxed">
               সোশ্যাল মিডিয়া অ্যাকাউন্ট ও ডিজিটাল অ্যাসেট কেনা-বেচার নিরাপদ মার্কেটপ্লেস।
