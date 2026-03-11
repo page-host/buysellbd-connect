@@ -12,7 +12,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban } from "lucide-react";
+import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban, Headphones } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { OrderChat } from "@/components/OrderChat";
 
@@ -64,6 +64,7 @@ export default function AdminDashboard() {
   const [roles, setRoles] = useState<UserRole[]>([]);
   const [messages, setMessages] = useState<ContactMessage[]>([]);
   const [reports, setReports] = useState<any[]>([]);
+  const [supportChats, setSupportChats] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
@@ -82,13 +83,14 @@ export default function AdminDashboard() {
     if (!isAdmin) return;
     const load = async () => {
       setLoadingData(true);
-      const [o, l, p, r, m, rp] = await Promise.all([
+      const [o, l, p, r, m, rp, sp] = await Promise.all([
         supabase.from("orders").select("*").order("created_at", { ascending: false }),
         supabase.from("listings").select("*").order("created_at", { ascending: false }),
         supabase.from("profiles").select("*").order("created_at", { ascending: false }),
         supabase.from("user_roles").select("*"),
         supabase.from("contact_messages").select("*").order("created_at", { ascending: false }),
         supabase.from("reports").select("*").order("created_at", { ascending: false }),
+        (supabase as any).from("support_messages").select("*").order("created_at", { ascending: true }),
       ]);
       setOrders(o.data || []);
       setListings(l.data || []);
@@ -96,6 +98,21 @@ export default function AdminDashboard() {
       setRoles(r.data || []);
       setMessages(m.data || []);
       setReports((rp.data as any[]) || []);
+      
+      // Group support messages by user_id
+      const allSupport = (sp.data as any[]) || [];
+      const grouped: Record<string, any[]> = {};
+      allSupport.forEach(msg => {
+        if (!grouped[msg.user_id]) grouped[msg.user_id] = [];
+        grouped[msg.user_id].push(msg);
+      });
+      setSupportChats(Object.entries(grouped).map(([userId, msgs]) => ({
+        userId,
+        messages: msgs,
+        unread: msgs.filter((m: any) => !m.is_read && m.sender_id === userId).length,
+        lastMessage: msgs[msgs.length - 1],
+      })));
+      
       setLoadingData(false);
     };
     load();
@@ -144,12 +161,26 @@ export default function AdminDashboard() {
     }
   };
 
-  const toggleRestriction = async (userId: string, currentlyRestricted: boolean | null) => {
+  const toggleRestriction = async (userId: string, currentlyRestricted: boolean | null, reason?: string) => {
     const newVal = !currentlyRestricted;
-    const { error } = await supabase.from("profiles").update({ is_restricted: newVal }).eq("user_id", userId);
+    const updateData: any = { is_restricted: newVal };
+    if (newVal && reason) updateData.restriction_reason = reason;
+    if (!newVal) updateData.restriction_reason = null;
+    
+    const { error } = await supabase.from("profiles").update(updateData).eq("user_id", userId);
     if (error) toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
     else {
-      setProfiles(prev => prev.map(p => p.user_id === userId ? { ...p, is_restricted: newVal } : p));
+      setProfiles(prev => prev.map(p => p.user_id === userId ? { ...p, is_restricted: newVal, restriction_reason: newVal ? reason : null } as any : p));
+      
+      // Send notification to the user
+      await supabase.rpc("create_notification", {
+        _user_id: userId,
+        _title: newVal ? "🚫 অ্যাকাউন্ট সীমাবদ্ধ" : "✅ সীমাবদ্ধতা সরানো হয়েছে",
+        _message: newVal ? `আপনার অ্যাকাউন্ট সীমাবদ্ধ করা হয়েছে। কারণ: ${reason || "নিয়ম লঙ্ঘন"}` : "আপনার অ্যাকাউন্টের সীমাবদ্ধতা সরানো হয়েছে। আপনি এখন বাই-সেল করতে পারবেন।",
+        _type: "restriction",
+        _reference_id: userId,
+      });
+      
       toast({ title: newVal ? "🚫 ইউজার সীমাবদ্ধ করা হয়েছে" : "✅ সীমাবদ্ধতা সরানো হয়েছে" });
     }
   };
@@ -227,6 +258,9 @@ export default function AdminDashboard() {
               <TabsTrigger value="users">ইউজার ({profiles.length})</TabsTrigger>
               <TabsTrigger value="reports" className="gap-1">
                 <AlertTriangle className="w-3.5 h-3.5" /> রিপোর্ট ({reports.length})
+              </TabsTrigger>
+              <TabsTrigger value="support" className="gap-1">
+                <Headphones className="w-3.5 h-3.5" /> সাপোর্ট ({supportChats.reduce((s, c) => s + c.unread, 0)})
               </TabsTrigger>
               <TabsTrigger value="messages">মেসেজ ({messages.length})</TabsTrigger>
             </TabsList>
@@ -411,15 +445,27 @@ export default function AdminDashboard() {
                                 </Select>
                               </TableCell>
                               <TableCell>
-                                <div className="flex items-center gap-2">
-                                  <Switch
-                                    checked={!!profile.is_restricted}
-                                    onCheckedChange={() => toggleRestriction(profile.user_id, profile.is_restricted)}
-                                  />
-                                  {profile.is_restricted && (
-                                    <Badge variant="destructive" className="text-xs gap-1">
-                                      <Ban className="w-3 h-3" /> সীমাবদ্ধ
-                                    </Badge>
+                                <div className="flex flex-col gap-2">
+                                  <div className="flex items-center gap-2">
+                                    <Switch
+                                      checked={!!profile.is_restricted}
+                                      onCheckedChange={() => {
+                                        if (!profile.is_restricted) {
+                                          const reason = prompt("রেস্ট্রিকশনের কারণ লিখুন:");
+                                          if (reason) toggleRestriction(profile.user_id, profile.is_restricted, reason);
+                                        } else {
+                                          toggleRestriction(profile.user_id, profile.is_restricted);
+                                        }
+                                      }}
+                                    />
+                                    {profile.is_restricted && (
+                                      <Badge variant="destructive" className="text-xs gap-1">
+                                        <Ban className="w-3 h-3" /> সীমাবদ্ধ
+                                      </Badge>
+                                    )}
+                                  </div>
+                                  {profile.is_restricted && (profile as any).restriction_reason && (
+                                    <p className="text-[10px] text-destructive/80">কারণ: {(profile as any).restriction_reason}</p>
                                   )}
                                 </div>
                               </TableCell>
@@ -508,6 +554,97 @@ export default function AdminDashboard() {
                           </div>
                         </div>
                       ))}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
+            {/* SUPPORT TAB */}
+            <TabsContent value="support">
+              <Card className="bg-card border-border">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Headphones className="w-5 h-5 text-primary" /> লাইভ সাপোর্ট চ্যাট</CardTitle></CardHeader>
+                <CardContent>
+                  {supportChats.length === 0 ? <p className="text-muted-foreground text-center py-8">কোনো সাপোর্ট মেসেজ নেই</p> : (
+                    <div className="space-y-4">
+                      {supportChats.map((chat: any) => {
+                        const userName = getProfileName(chat.userId);
+                        return (
+                          <details key={chat.userId} className="group">
+                            <summary className="cursor-pointer p-4 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium text-foreground text-sm">{userName}</span>
+                                {chat.unread > 0 && (
+                                  <Badge variant="destructive" className="text-[10px]">{chat.unread} অপঠিত</Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {chat.lastMessage ? new Date(chat.lastMessage.created_at).toLocaleString("bn-BD") : ""}
+                              </span>
+                            </summary>
+                            <div className="mt-2 border border-border rounded-lg overflow-hidden">
+                              <div className="max-h-64 overflow-y-auto p-4 space-y-2">
+                                {chat.messages.map((msg: any) => {
+                                  const isUser = msg.sender_id === chat.userId;
+                                  return (
+                                    <div key={msg.id} className={`flex flex-col ${isUser ? "items-start" : "items-end"}`}>
+                                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 mb-0.5 ${isUser ? "bg-blue-500/20 text-blue-400" : "bg-primary/20 text-primary"}`}>
+                                        {isUser ? userName : "অ্যাডমিন"}
+                                      </Badge>
+                                      <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${isUser ? "bg-secondary text-foreground" : "bg-primary/10 text-foreground"}`}>
+                                        <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                                      </div>
+                                      <span className="text-[9px] text-muted-foreground mt-0.5">
+                                        {new Date(msg.created_at).toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" })}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="border-t border-border p-3 flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="উত্তর লিখুন..."
+                                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                  id={`support-reply-${chat.userId}`}
+                                  onKeyDown={async (e) => {
+                                    if (e.key === "Enter") {
+                                      const input = e.target as HTMLInputElement;
+                                      if (!input.value.trim()) return;
+                                      await (supabase as any).from("support_messages").insert({
+                                        user_id: chat.userId,
+                                        sender_id: user!.id,
+                                        message: input.value.trim(),
+                                      });
+                                      input.value = "";
+                                      // Refresh
+                                      const { data } = await (supabase as any).from("support_messages").select("*").eq("user_id", chat.userId).order("created_at", { ascending: true });
+                                      setSupportChats((prev: any[]) => prev.map(c => c.userId === chat.userId ? { ...c, messages: data || c.messages, unread: 0 } : c));
+                                      // Mark as read
+                                      await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("is_read", false);
+                                    }
+                                  }}
+                                />
+                                <Button size="sm" className="text-xs" onClick={async () => {
+                                  const input = document.getElementById(`support-reply-${chat.userId}`) as HTMLInputElement;
+                                  if (!input?.value.trim()) return;
+                                  await (supabase as any).from("support_messages").insert({
+                                    user_id: chat.userId,
+                                    sender_id: user!.id,
+                                    message: input.value.trim(),
+                                  });
+                                  input.value = "";
+                                  const { data } = await (supabase as any).from("support_messages").select("*").eq("user_id", chat.userId).order("created_at", { ascending: true });
+                                  setSupportChats((prev: any[]) => prev.map(c => c.userId === chat.userId ? { ...c, messages: data || c.messages, unread: 0 } : c));
+                                  await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("is_read", false);
+                                }}>
+                                  পাঠান
+                                </Button>
+                              </div>
+                            </div>
+                          </details>
+                        );
+                      })}
                     </div>
                   )}
                 </CardContent>

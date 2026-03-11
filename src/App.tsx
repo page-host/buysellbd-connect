@@ -18,6 +18,7 @@ import NotFound from "./pages/NotFound";
 import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import PublicProfile from "./pages/PublicProfile";
+import { SupportChat } from "./components/SupportChat";
 
 const queryClient = new QueryClient();
 
@@ -45,6 +46,7 @@ const App = () => (
             {/* ADD ALL CUSTOM ROUTES ABOVE THE CATCH-ALL "*" ROUTE */}
             <Route path="*" element={<NotFound />} />
           </Routes>
+          <SupportChat />
         </AuthProvider>
       </BrowserRouter>
     </TooltipProvider>

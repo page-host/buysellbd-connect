@@ -1,4 +1,4 @@
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Send, Key, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, MessageSquare, X } from "lucide-react";
+import { Send, Key, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, MessageSquare, X, Check, CheckCheck } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -30,6 +30,7 @@ interface Message {
   sender_id: string;
   message: string;
   is_credentials: boolean;
+  is_read: boolean;
   created_at: string;
 }
 
@@ -53,6 +54,19 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const hasCredentials = messages.some(m => m.is_credentials);
   const isCompleted = ["completed", "refunded", "cancelled"].includes(orderStatus);
 
+  // Unread = messages sent by the OTHER party that I haven't read
+  const unreadCount = user ? messages.filter(m => m.sender_id !== user.id && !m.is_read).length : 0;
+
+  const fetchMessages = useCallback(async () => {
+    const { data } = await (supabase as any)
+      .from("order_messages")
+      .select("*")
+      .eq("order_id", orderId)
+      .order("created_at", { ascending: true });
+    setMessages((data as Message[]) || []);
+    setLoading(false);
+  }, [orderId]);
+
   useEffect(() => {
     fetchMessages();
 
@@ -60,15 +74,13 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
       .channel(`order-chat-${orderId}`)
       .on(
         "postgres_changes",
-        { event: "INSERT", schema: "public", table: "order_messages", filter: `order_id=eq.${orderId}` },
-        (payload) => {
-          setMessages((prev) => [...prev, payload.new as Message]);
-        }
+        { event: "*", schema: "public", table: "order_messages", filter: `order_id=eq.${orderId}` },
+        () => fetchMessages()
       )
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [orderId]);
+  }, [orderId, fetchMessages]);
 
   useEffect(() => {
     if (scrollRef.current) {
@@ -76,31 +88,33 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     }
   }, [messages]);
 
-  const fetchMessages = async () => {
-    const { data } = await supabase
-      .from("order_messages")
-      .select("*")
-      .eq("order_id", orderId)
-      .order("created_at", { ascending: true });
-    setMessages((data as Message[]) || []);
-    setLoading(false);
-  };
+  // Mark messages as read when chat is open (not for admin)
+  useEffect(() => {
+    if (!chatOpen || !user || isAdminView) return;
+    const unread = messages.filter(m => m.sender_id !== user.id && !m.is_read);
+    if (unread.length > 0) {
+      Promise.all(
+        unread.map(m => (supabase as any).from("order_messages").update({ is_read: true }).eq("id", m.id))
+      ).then(() => {
+        setMessages(prev => prev.map(m => m.sender_id !== user.id ? { ...m, is_read: true } : m));
+      });
+    }
+  }, [chatOpen, messages, user, isAdminView]);
 
   const sendMessage = async () => {
     if (!newMessage.trim() || !user) return;
     setSending(true);
 
-    // If seller sends credentials, also update order status to delivering
     if (isCredential && isSeller) {
       await supabase.from("orders").update({ status: "delivering" as any }).eq("id", orderId);
     }
 
-    const { error } = await supabase.from("order_messages").insert({
+    const { error } = await (supabase as any).from("order_messages").insert({
       order_id: orderId,
       sender_id: user.id,
       message: newMessage.trim(),
       is_credentials: isCredential,
-    } as any);
+    });
     setSending(false);
     if (error) {
       toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
@@ -113,13 +127,24 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const confirmOrder = async () => {
     if (!user) return;
 
-    // Send a system-like message that the order is confirmed
-    await supabase.from("order_messages").insert({
+    await (supabase as any).from("order_messages").insert({
       order_id: orderId,
       sender_id: user.id,
       message: "✅ ক্রেতা অর্ডার কনফার্ম করেছে। অর্ডার সম্পন্ন হয়েছে!",
       is_credentials: false,
-    } as any);
+    });
+
+    // Notify seller
+    const { data: orderData } = await supabase.from("orders").select("seller_id, id").eq("id", orderId).maybeSingle();
+    if (orderData) {
+      await supabase.rpc("create_notification", {
+        _user_id: orderData.seller_id,
+        _title: "✅ অর্ডার সম্পন্ন",
+        _message: `অর্ডার #${orderData.id.slice(0, 8).toUpperCase()} সম্পন্ন হয়েছে। ক্রেতা ক্রেডেনশিয়াল কনফার্ম করেছে।`,
+        _type: "order",
+        _reference_id: orderData.id,
+      });
+    }
 
     const { error } = await supabase
       .from("orders")
@@ -136,11 +161,11 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const submitReport = async () => {
     if (!reportMessage.trim() || !user) return;
     setReportSending(true);
-    const { error } = await supabase.from("reports").insert({
+    const { error } = await (supabase as any).from("reports").insert({
       order_id: orderId,
       reporter_id: user.id,
       message: reportMessage.trim(),
-    } as any);
+    });
     setReportSending(false);
     if (error) {
       toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
@@ -163,10 +188,17 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     return "bg-primary/20 text-primary";
   };
 
-  const canChat = ["payment_confirmed", "delivering", "delivered", "disputed"].includes(orderStatus);
-  const unreadCount = messages.length;
+  const getMessageStatus = (msg: Message) => {
+    if (!user || msg.sender_id !== user.id) return null;
+    if (msg.is_read) {
+      return <span className="text-[9px] text-primary flex items-center gap-0.5"><CheckCheck className="w-3 h-3" /> সিন</span>;
+    }
+    return <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Check className="w-3 h-3" /> সেন্ট</span>;
+  };
 
-  // Collapsed view - just an icon button
+  const canChat = ["payment_confirmed", "delivering", "delivered", "disputed"].includes(orderStatus);
+
+  // Collapsed view
   if (!chatOpen && !isAdminView) {
     return (
       <div className="flex items-center gap-2">
@@ -179,7 +211,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
           <MessageSquare className="w-4 h-4" />
           💬 চ্যাট খুলুন
           {unreadCount > 0 && (
-            <Badge variant="secondary" className="h-5 w-5 p-0 flex items-center justify-center text-[10px] bg-primary text-primary-foreground">
+            <Badge variant="secondary" className="h-5 min-w-[20px] p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
               {unreadCount}
             </Badge>
           )}
@@ -288,13 +320,15 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
                     {msg.message}
                   </p>
                 </div>
+                {/* Message status - only show for own messages, not in admin view */}
+                {!isAdminView && getMessageStatus(msg)}
               </div>
             );
           })
         )}
       </div>
 
-      {/* Buyer confirm button - shows when credentials received */}
+      {/* Buyer confirm button */}
       {isBuyer && hasCredentials && !isCompleted && (
         <div className="border-t border-border p-3 bg-accent/5">
           <div className="flex items-center justify-between gap-3">
@@ -312,7 +346,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
         </div>
       )}
 
-      {/* Chat input - only for buyer/seller, NOT admin, NOT completed */}
+      {/* Chat input */}
       {canChat && isParticipant && !isCompleted ? (
         <div className="border-t border-border p-3">
           {isSeller && (
