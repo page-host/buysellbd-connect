@@ -48,10 +48,11 @@ const Signup = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <ShoppingBag className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">SAEM</span>
+            <img
+            src={logo}
+            alt="SAEM Logo"
+            className="h-20 w-auto object-contain mix-blend-multiply"
+            />
           </Link>
           <h1 className="text-2xl font-extrabold text-foreground">নতুন অ্যাকাউন্ট তৈরি করুন</h1>
           <p className="text-muted-foreground mt-2">বিনামূল্যে রেজিস্ট্রেশন করুন এবং শুরু করুন।</p>
