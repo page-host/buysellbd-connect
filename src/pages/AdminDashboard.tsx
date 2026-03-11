@@ -560,6 +560,97 @@ export default function AdminDashboard() {
               </Card>
             </TabsContent>
 
+            {/* SUPPORT TAB */}
+            <TabsContent value="support">
+              <Card className="bg-card border-border">
+                <CardHeader><CardTitle className="flex items-center gap-2"><Headphones className="w-5 h-5 text-primary" /> লাইভ সাপোর্ট চ্যাট</CardTitle></CardHeader>
+                <CardContent>
+                  {supportChats.length === 0 ? <p className="text-muted-foreground text-center py-8">কোনো সাপোর্ট মেসেজ নেই</p> : (
+                    <div className="space-y-4">
+                      {supportChats.map((chat: any) => {
+                        const userName = getProfileName(chat.userId);
+                        return (
+                          <details key={chat.userId} className="group">
+                            <summary className="cursor-pointer p-4 rounded-lg border border-border bg-muted/30 hover:bg-muted/50 transition-colors flex items-center justify-between">
+                              <div className="flex items-center gap-3">
+                                <span className="font-medium text-foreground text-sm">{userName}</span>
+                                {chat.unread > 0 && (
+                                  <Badge variant="destructive" className="text-[10px]">{chat.unread} অপঠিত</Badge>
+                                )}
+                              </div>
+                              <span className="text-xs text-muted-foreground">
+                                {chat.lastMessage ? new Date(chat.lastMessage.created_at).toLocaleString("bn-BD") : ""}
+                              </span>
+                            </summary>
+                            <div className="mt-2 border border-border rounded-lg overflow-hidden">
+                              <div className="max-h-64 overflow-y-auto p-4 space-y-2">
+                                {chat.messages.map((msg: any) => {
+                                  const isUser = msg.sender_id === chat.userId;
+                                  return (
+                                    <div key={msg.id} className={`flex flex-col ${isUser ? "items-start" : "items-end"}`}>
+                                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 mb-0.5 ${isUser ? "bg-blue-500/20 text-blue-400" : "bg-primary/20 text-primary"}`}>
+                                        {isUser ? userName : "অ্যাডমিন"}
+                                      </Badge>
+                                      <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${isUser ? "bg-secondary text-foreground" : "bg-primary/10 text-foreground"}`}>
+                                        <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                                      </div>
+                                      <span className="text-[9px] text-muted-foreground mt-0.5">
+                                        {new Date(msg.created_at).toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" })}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                              </div>
+                              <div className="border-t border-border p-3 flex gap-2">
+                                <input
+                                  type="text"
+                                  placeholder="উত্তর লিখুন..."
+                                  className="flex-1 bg-background border border-border rounded-lg px-3 py-2 text-sm focus:outline-none focus:ring-1 focus:ring-primary"
+                                  id={`support-reply-${chat.userId}`}
+                                  onKeyDown={async (e) => {
+                                    if (e.key === "Enter") {
+                                      const input = e.target as HTMLInputElement;
+                                      if (!input.value.trim()) return;
+                                      await (supabase as any).from("support_messages").insert({
+                                        user_id: chat.userId,
+                                        sender_id: user!.id,
+                                        message: input.value.trim(),
+                                      });
+                                      input.value = "";
+                                      // Refresh
+                                      const { data } = await (supabase as any).from("support_messages").select("*").eq("user_id", chat.userId).order("created_at", { ascending: true });
+                                      setSupportChats((prev: any[]) => prev.map(c => c.userId === chat.userId ? { ...c, messages: data || c.messages, unread: 0 } : c));
+                                      // Mark as read
+                                      await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("is_read", false);
+                                    }
+                                  }}
+                                />
+                                <Button size="sm" className="text-xs" onClick={async () => {
+                                  const input = document.getElementById(`support-reply-${chat.userId}`) as HTMLInputElement;
+                                  if (!input?.value.trim()) return;
+                                  await (supabase as any).from("support_messages").insert({
+                                    user_id: chat.userId,
+                                    sender_id: user!.id,
+                                    message: input.value.trim(),
+                                  });
+                                  input.value = "";
+                                  const { data } = await (supabase as any).from("support_messages").select("*").eq("user_id", chat.userId).order("created_at", { ascending: true });
+                                  setSupportChats((prev: any[]) => prev.map(c => c.userId === chat.userId ? { ...c, messages: data || c.messages, unread: 0 } : c));
+                                  await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("is_read", false);
+                                }}>
+                                  পাঠান
+                                </Button>
+                              </div>
+                            </div>
+                          </details>
+                        );
+                      })}
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+            </TabsContent>
+
             {/* MESSAGES TAB */}
             <TabsContent value="messages">
               <Card className="bg-card border-border">
