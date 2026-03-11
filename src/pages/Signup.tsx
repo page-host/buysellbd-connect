@@ -7,6 +7,7 @@ import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { isDisposableEmail } from "@/lib/disposable-emails";
 import { ShoppingBag, Mail, Lock, User, Eye, EyeOff } from "lucide-react";
+import logo from "@/assets/eye.png";
 
 const Signup = () => {
   const [fullName, setFullName] = useState("");
