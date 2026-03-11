@@ -6,6 +6,7 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { ShoppingBag, Mail, ArrowLeft } from "lucide-react";
+import logo from "@/assets/eye.png";
 
 const ForgotPassword = () => {
   const [email, setEmail] = useState("");
@@ -31,10 +32,11 @@ const ForgotPassword = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <div className="w-10 h-10 rounded-lg gradient-primary flex items-center justify-center">
-              <ShoppingBag className="w-6 h-6 text-primary-foreground" />
-            </div>
-            <span className="text-2xl font-bold text-foreground">SAEM</span>
+            <img
+            src={logo}
+            alt="SAEM Logo"
+            className="h-20 w-auto object-contain mix-blend-multiply"
+            />
           </Link>
           <h1 className="text-2xl font-extrabold text-foreground">পাসওয়ার্ড রিসেট</h1>
           <p className="text-muted-foreground mt-2">আপনার ইমেইলে রিসেট লিংক পাঠানো হবে।</p>
