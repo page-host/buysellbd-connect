@@ -7,6 +7,7 @@ import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
+import { NotificationBell } from "@/components/NotificationBell";
 import logo from "@/assets/eye.png";
 
 const navLinks = [
@@ -121,7 +122,6 @@ export function Navbar() {
             alt="SAEM Logo"
             className="h-20 w-auto object-contain mix-blend-multiply"
           />
-          {/* <span className="text-2xl font-bold text-foreground tracking-tighter">SAEM</span> */}
         </Link>
 
         <div className="hidden md:flex items-center gap-8">
@@ -134,7 +134,10 @@ export function Navbar() {
 
         <div className="hidden md:flex items-center gap-3">
           {user ? (
-            <ProfileDropdown />
+            <div className="flex items-center gap-2">
+              <NotificationBell />
+              <ProfileDropdown />
+            </div>
           ) : (
             <>
               <Link to="/login">
@@ -147,7 +150,8 @@ export function Navbar() {
           )}
         </div>
 
-        <div className="flex items-center gap-2 md:hidden">
+        <div className="flex items-center gap-1 md:hidden">
+          {user && <NotificationBell />}
           {user && <ProfileDropdown />}
           <button onClick={() => setMobileOpen(!mobileOpen)} className="text-foreground">
             {mobileOpen ? <X className="w-6 h-6" /> : <Menu className="w-6 h-6" />}
