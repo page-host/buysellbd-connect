@@ -144,12 +144,26 @@ export default function AdminDashboard() {
     }
   };
 
-  const toggleRestriction = async (userId: string, currentlyRestricted: boolean | null) => {
+  const toggleRestriction = async (userId: string, currentlyRestricted: boolean | null, reason?: string) => {
     const newVal = !currentlyRestricted;
-    const { error } = await supabase.from("profiles").update({ is_restricted: newVal }).eq("user_id", userId);
+    const updateData: any = { is_restricted: newVal };
+    if (newVal && reason) updateData.restriction_reason = reason;
+    if (!newVal) updateData.restriction_reason = null;
+    
+    const { error } = await supabase.from("profiles").update(updateData).eq("user_id", userId);
     if (error) toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
     else {
-      setProfiles(prev => prev.map(p => p.user_id === userId ? { ...p, is_restricted: newVal } : p));
+      setProfiles(prev => prev.map(p => p.user_id === userId ? { ...p, is_restricted: newVal, restriction_reason: newVal ? reason : null } as any : p));
+      
+      // Send notification to the user
+      await supabase.rpc("create_notification", {
+        _user_id: userId,
+        _title: newVal ? "🚫 অ্যাকাউন্ট সীমাবদ্ধ" : "✅ সীমাবদ্ধতা সরানো হয়েছে",
+        _message: newVal ? `আপনার অ্যাকাউন্ট সীমাবদ্ধ করা হয়েছে। কারণ: ${reason || "নিয়ম লঙ্ঘন"}` : "আপনার অ্যাকাউন্টের সীমাবদ্ধতা সরানো হয়েছে। আপনি এখন বাই-সেল করতে পারবেন।",
+        _type: "restriction",
+        _reference_id: userId,
+      });
+      
       toast({ title: newVal ? "🚫 ইউজার সীমাবদ্ধ করা হয়েছে" : "✅ সীমাবদ্ধতা সরানো হয়েছে" });
     }
   };
