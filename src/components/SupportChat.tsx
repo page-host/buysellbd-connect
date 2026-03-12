@@ -39,12 +39,21 @@ export function SupportChat() {
   const { user } = useAuth();
   const { t, lang } = useLanguage();
   const [open, setOpen] = useState(false);
+  const [isAdmin, setIsAdmin] = useState(false);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  // Check if user is admin
+  useEffect(() => {
+    if (!user) return;
+    supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data }) => {
+      setIsAdmin(!!data);
+    });
+  }, [user]);
 
   const quickMessages = [t("support.quick1"), t("support.quick2"), t("support.quick3"), t("support.quick4")];
 
@@ -130,6 +139,9 @@ export function SupportChat() {
       setMessages(prev => prev.map(m => m.id === tempId ? data : m));
     }
   };
+
+  // Don't render support chat for admin users
+  if (isAdmin) return null;
 
   if (!user) {
     return (

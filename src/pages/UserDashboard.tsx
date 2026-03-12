@@ -1,6 +1,7 @@
 import { useEffect, useState, useRef } from "react";
 import { useNavigate, Link } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
+import { useLanguage } from "@/contexts/LanguageContext";
 import { supabase } from "@/integrations/supabase/client";
 import { Navbar } from "@/components/Navbar";
 import { Footer } from "@/components/Footer";
@@ -57,6 +58,7 @@ const paymentLabels: Record<string, string> = {
 
 export default function UserDashboard() {
   const { user, loading: authLoading } = useAuth();
+  const { t, lang } = useLanguage();
   const navigate = useNavigate();
 
   const [profile, setProfile] = useState<Profile | null>(null);
@@ -237,10 +239,10 @@ export default function UserDashboard() {
         {/* Stats Cards */}
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
-            { label: "মোট ব্যয়", value: `৳${totalSpent.toLocaleString()}`, icon: Wallet, color: "text-red-400", bg: "bg-red-500/10" },
-            { label: "মোট আয়", value: `৳${totalEarned.toLocaleString()}`, icon: TrendingUp, color: "text-green-400", bg: "bg-green-500/10" },
-            { label: "পেন্ডিং অর্ডার", value: pendingCount, icon: Clock, color: "text-yellow-400", bg: "bg-yellow-500/10" },
-            { label: "সম্পন্ন অর্ডার", value: completedCount, icon: CheckCircle2, color: "text-primary", bg: "bg-primary/10" },
+            { label: t("dash.total_spent"), value: `৳${totalSpent.toLocaleString()}`, icon: Wallet, color: "text-red-400", bg: "bg-red-500/10" },
+            { label: t("dash.total_earned"), value: `৳${totalEarned.toLocaleString()}`, icon: TrendingUp, color: "text-green-400", bg: "bg-green-500/10" },
+            { label: t("dash.pending_orders"), value: pendingCount, icon: Clock, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+            { label: t("dash.completed_orders"), value: completedCount, icon: CheckCircle2, color: "text-primary", bg: "bg-primary/10" },
           ].map((s, i) => (
             <Card key={i} className="bg-card border-border">
               <CardContent className="p-5 flex items-center gap-3">
@@ -258,10 +260,10 @@ export default function UserDashboard() {
 
         <Tabs defaultValue="profile">
           <TabsList className="mb-6 bg-muted flex-wrap">
-            <TabsTrigger value="profile" className="gap-2"><User className="w-4 h-4" />প্রোফাইল</TabsTrigger>
-            <TabsTrigger value="password" className="gap-2"><Lock className="w-4 h-4" />পাসওয়ার্ড</TabsTrigger>
-            <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />আমার লিস্টিং ({myListings.length})</TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />অর্ডার ({orders.length})</TabsTrigger>
+            <TabsTrigger value="profile" className="gap-2"><User className="w-4 h-4" />{t("dash.profile_tab")}</TabsTrigger>
+            <TabsTrigger value="password" className="gap-2"><Lock className="w-4 h-4" />{t("dash.password_tab")}</TabsTrigger>
+            <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />{t("dash.my_listings_tab")} ({myListings.length})</TabsTrigger>
+            <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />{t("dash.orders_tab")} ({orders.length})</TabsTrigger>
           </TabsList>
 
           {/* PROFILE TAB */}
@@ -269,7 +271,7 @@ export default function UserDashboard() {
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <User className="w-5 h-5 text-primary" /> প্রোফাইল তথ্য
+                  <User className="w-5 h-5 text-primary" /> {t("dash.profile_info")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
@@ -291,15 +293,15 @@ export default function UserDashboard() {
                     </button>
                   </div>
                   <div className="space-y-1">
-                    <p className="text-sm font-medium text-foreground">প্রোফাইল ছবি</p>
+                    <p className="text-sm font-medium text-foreground">{t("dash.profile_pic")}</p>
                     <div className="flex gap-2">
                       <Button size="sm" variant="outline" className="text-xs h-7" onClick={() => fileInputRef.current?.click()} disabled={uploadingAvatar}>
                         {uploadingAvatar ? <Loader2 className="w-3 h-3 animate-spin mr-1" /> : <Camera className="w-3 h-3 mr-1" />}
-                        আপলোড
+                        {t("dash.upload")}
                       </Button>
                       {profile?.avatar_url && (
                         <Button size="sm" variant="outline" className="text-xs h-7 text-destructive" onClick={deleteAvatar} disabled={uploadingAvatar}>
-                          <Trash2 className="w-3 h-3 mr-1" /> মুছুন
+                          <Trash2 className="w-3 h-3 mr-1" /> {t("dash.delete")}
                         </Button>
                       )}
                     </div>
@@ -309,19 +311,19 @@ export default function UserDashboard() {
 
                 <form onSubmit={saveProfile} className="space-y-5 max-w-md">
                   <div className="space-y-2">
-                    <Label>ইমেইল</Label>
+                    <Label>{t("dash.email")}</Label>
                     <Input value={user.email || ""} disabled className="opacity-60 cursor-not-allowed" />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="fullName">পূর্ণ নাম</Label>
-                    <Input id="fullName" placeholder="আপনার নাম লিখুন" value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} />
+                    <Label htmlFor="fullName">{t("dash.full_name")}</Label>
+                    <Input id="fullName" placeholder={t("dash.name_placeholder")} value={fullName} onChange={(e) => setFullName(e.target.value)} maxLength={100} />
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="phone">ফোন নম্বর</Label>
-                    <Input id="phone" placeholder="যেমন: 01XXXXXXXXX" value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
+                    <Label htmlFor="phone">{t("dash.phone")}</Label>
+                    <Input id="phone" placeholder={t("dash.phone_placeholder")} value={phone} onChange={(e) => setPhone(e.target.value)} maxLength={20} />
                   </div>
                   <Button type="submit" className="gradient-primary text-primary-foreground border-0 font-semibold" disabled={savingProfile}>
-                    {savingProfile ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />সংরক্ষণ...</> : "প্রোফাইল সংরক্ষণ"}
+                    {savingProfile ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("dash.saving")}</> : t("dash.save_profile")}
                   </Button>
                 </form>
               </CardContent>
@@ -333,36 +335,36 @@ export default function UserDashboard() {
             <Card className="bg-card border-border">
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <Lock className="w-5 h-5 text-primary" /> পাসওয়ার্ড পরিবর্তন
+                  <Lock className="w-5 h-5 text-primary" /> {t("dash.change_password")}
                 </CardTitle>
               </CardHeader>
               <CardContent>
                 <form onSubmit={changePassword} className="space-y-5 max-w-md">
                   <div className="space-y-2">
-                    <Label htmlFor="newPw">নতুন পাসওয়ার্ড</Label>
+                    <Label htmlFor="newPw">{t("dash.new_password")}</Label>
                     <div className="relative">
-                      <Input id="newPw" type={showNewPw ? "text" : "password"} placeholder="নতুন পাসওয়ার্ড (কমপক্ষে ৬ অক্ষর)" value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} className="pr-10" />
+                      <Input id="newPw" type={showNewPw ? "text" : "password"} placeholder={t("dash.new_pw_placeholder")} value={newPassword} onChange={(e) => setNewPassword(e.target.value)} required minLength={6} className="pr-10" />
                       <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowNewPw(!showNewPw)}>
                         {showNewPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                   </div>
                   <div className="space-y-2">
-                    <Label htmlFor="confirmPw">পাসওয়ার্ড নিশ্চিত করুন</Label>
+                    <Label htmlFor="confirmPw">{t("dash.confirm_password")}</Label>
                     <div className="relative">
-                      <Input id="confirmPw" type={showPw ? "text" : "password"} placeholder="পাসওয়ার্ড আবার লিখুন" value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pr-10" />
+                      <Input id="confirmPw" type={showPw ? "text" : "password"} placeholder={t("dash.confirm_pw_placeholder")} value={confirmPassword} onChange={(e) => setConfirmPassword(e.target.value)} required className="pr-10" />
                       <button type="button" className="absolute right-3 top-1/2 -translate-y-1/2 text-muted-foreground" onClick={() => setShowPw(!showPw)}>
                         {showPw ? <EyeOff className="w-4 h-4" /> : <Eye className="w-4 h-4" />}
                       </button>
                     </div>
                     {confirmPassword && newPassword !== confirmPassword && (
                       <p className="text-xs text-destructive flex items-center gap-1">
-                        <AlertCircle className="w-3 h-3" /> পাসওয়ার্ড মিলছে না
+                        <AlertCircle className="w-3 h-3" /> {t("dash.pw_mismatch")}
                       </p>
                     )}
                   </div>
                   <Button type="submit" className="gradient-primary text-primary-foreground border-0 font-semibold" disabled={savingPw}>
-                    {savingPw ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />পরিবর্তন হচ্ছে...</> : "পাসওয়ার্ড পরিবর্তন করুন"}
+                    {savingPw ? <><Loader2 className="w-4 h-4 mr-2 animate-spin" />{t("dash.changing_pw")}</> : t("dash.change_pw_btn")}
                   </Button>
                 </form>
               </CardContent>
@@ -376,10 +378,10 @@ export default function UserDashboard() {
                 <Card className="bg-card border-border">
                   <CardContent className="py-16 text-center">
                     <ShoppingBag className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                    <p className="text-muted-foreground mb-4">আপনার কোনো লিস্টিং নেই</p>
+                    <p className="text-muted-foreground mb-4">{t("dash.no_listings")}</p>
                     <Link to="/create-listing">
                       <Button className="gradient-primary text-primary-foreground border-0">
-                        <Plus className="w-4 h-4 mr-1" /> নতুন লিস্টিং তৈরি করুন
+                        <Plus className="w-4 h-4 mr-1" /> {t("dash.create_listing")}
                       </Button>
                     </Link>
                   </CardContent>
@@ -394,7 +396,7 @@ export default function UserDashboard() {
                             <div className="flex items-center gap-2 mb-1 flex-wrap">
                               <h3 className="text-sm font-bold text-foreground truncate">{listing.title}</h3>
                               <Badge variant="outline" className={`text-xs ${statusColors[listing.status] || ""}`}>
-                                {listing.status === 'sold' ? 'স্টকআউট' : listing.status === 'active' ? 'সক্রিয়' : listing.status === 'removed' ? 'মুছে ফেলা' : listing.status}
+                                {listing.status === 'sold' ? t("dash.stockout") : listing.status === 'active' ? t("dash.active") : listing.status === 'removed' ? t("dash.removed") : listing.status}
                               </Badge>
                             </div>
                             <p className="text-lg font-extrabold text-primary">৳{Number(listing.price).toLocaleString()}</p>
@@ -408,7 +410,7 @@ export default function UserDashboard() {
                               disabled={listing.status === 'removed'}
                             >
                               <PackageX className="w-3 h-3" />
-                              {listing.status === 'sold' ? 'সক্রিয় করুন' : 'স্টকআউট'}
+                              {listing.status === 'sold' ? t("dash.activate") : t("dash.stockout")}
                             </Button>
                             <Button
                               size="sm"
@@ -417,7 +419,7 @@ export default function UserDashboard() {
                               onClick={() => deleteListing(listing.id)}
                               disabled={listing.status === 'removed'}
                             >
-                              <Trash2 className="w-3 h-3" /> মুছুন
+                              <Trash2 className="w-3 h-3" /> {t("dash.delete")}
                             </Button>
                           </div>
                         </div>
@@ -427,7 +429,7 @@ export default function UserDashboard() {
                   <div className="flex justify-center pt-2">
                     <Link to="/create-listing">
                       <Button variant="outline" className="gap-2 border-primary/50 text-primary">
-                        <Plus className="w-4 h-4" /> নতুন লিস্টিং তৈরি করুন
+                        <Plus className="w-4 h-4" /> {t("dash.create_listing")}
                       </Button>
                     </Link>
                   </div>
@@ -443,10 +445,10 @@ export default function UserDashboard() {
                 <Card className="bg-card border-border">
                   <CardContent className="py-16 text-center">
                     <ShoppingBag className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                    <p className="text-muted-foreground mb-4">এখনো কোনো অর্ডার নেই</p>
+                    <p className="text-muted-foreground mb-4">{t("dash.no_orders")}</p>
                     <Link to="/marketplace">
                       <Button className="gradient-primary text-primary-foreground border-0">
-                        মার্কেটপ্লেসে যান <ArrowRight className="w-4 h-4 ml-1" />
+                        {t("dash.go_marketplace")} <ArrowRight className="w-4 h-4 ml-1" />
                       </Button>
                     </Link>
                   </CardContent>
@@ -461,33 +463,33 @@ export default function UserDashboard() {
                           <div className="flex-1 min-w-0">
                             <div className="flex items-center gap-2 mb-2 flex-wrap">
                               <Badge variant="outline" className={`text-xs border ${statusColors[order.status] || ""}`}>
-                                {statusLabels[order.status] || order.status}
+                                {t(`status.${order.status}`) !== `status.${order.status}` ? t(`status.${order.status}`) : order.status}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {isBuyer ? "ক্রেতা" : "বিক্রেতা"}
+                                {isBuyer ? t("dash.buyer") : t("dash.seller")}
                               </Badge>
                               <Badge variant="outline" className="text-xs">
-                                {paymentLabels[order.payment_method] || order.payment_method}
+                                {t(`payment.${order.payment_method}`) !== `payment.${order.payment_method}` ? t(`payment.${order.payment_method}`) : order.payment_method}
                               </Badge>
                             </div>
                             <p className="text-xs text-muted-foreground mb-1">
-                              অর্ডার #{order.id.slice(0, 8).toUpperCase()}
+                              {t("dash.order_id")} #{order.id.slice(0, 8).toUpperCase()}
                             </p>
                             {order.payment_reference && (
                               <p className="text-xs text-muted-foreground">
-                                রেফারেন্স: <span className="font-mono text-foreground">{order.payment_reference}</span>
+                                {t("dash.reference")}: <span className="font-mono text-foreground">{order.payment_reference}</span>
                               </p>
                             )}
                             {order.admin_notes && (
                               <p className="text-xs mt-1 text-primary/80 bg-primary/5 rounded px-2 py-1 inline-block">
-                                অ্যাডমিন নোট: {order.admin_notes}
+                                {t("dash.admin_note")}: {order.admin_notes}
                               </p>
                             )}
                           </div>
                           <div className="text-right shrink-0">
                             <p className="text-2xl font-extrabold text-primary">৳{Number(order.amount).toLocaleString()}</p>
                             <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(order.created_at).toLocaleDateString("bn-BD", {
+                              {new Date(order.created_at).toLocaleDateString(lang === "bn" ? "bn-BD" : "en-US", {
                                 year: "numeric", month: "long", day: "numeric"
                               })}
                             </p>
@@ -513,11 +515,11 @@ export default function UserDashboard() {
                             })}
                           </div>
                           <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-                            <span>পেন্ডিং</span>
-                            <span>পেমেন্ট</span>
-                            <span>নিশ্চিত</span>
-                            <span>ডেলিভারি</span>
-                            <span>সম্পন্ন</span>
+                            <span>{t("dash.status_pending")}</span>
+                            <span>{t("dash.status_payment")}</span>
+                            <span>{t("dash.status_confirmed")}</span>
+                            <span>{t("dash.status_delivery")}</span>
+                            <span>{t("dash.status_completed")}</span>
                           </div>
                         </div>
 
