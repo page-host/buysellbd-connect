@@ -336,7 +336,17 @@ export default function AdminDashboard() {
                             </TableRow>
                             {expandedOrder === order.id && (
                               <TableRow>
-                                <TableCell colSpan={8} className="p-4">
+                                <TableCell colSpan={8} className="p-4 space-y-3">
+                                  {(() => {
+                                    const listing = listings.find(l => l.id === order.listing_id);
+                                    const paymentInfo = (listing as any)?.payment_info;
+                                    return paymentInfo ? (
+                                      <div className="p-3 rounded-lg bg-amber-500/10 border border-amber-500/20">
+                                        <p className="text-xs font-semibold text-amber-400 mb-1">💳 সেলারের পেমেন্ট তথ্য</p>
+                                        <p className="text-sm text-foreground whitespace-pre-wrap">{paymentInfo}</p>
+                                      </div>
+                                    ) : null;
+                                  })()}
                                   <OrderChat
                                     orderId={order.id}
                                     buyerId={order.buyer_id}

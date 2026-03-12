@@ -52,6 +52,7 @@ export type Database = {
           followers_count: string | null
           id: string
           images: string[] | null
+          payment_info: string | null
           platform_url: string | null
           price: number
           seller_id: string
@@ -70,6 +71,7 @@ export type Database = {
           followers_count?: string | null
           id?: string
           images?: string[] | null
+          payment_info?: string | null
           platform_url?: string | null
           price: number
           seller_id: string
@@ -88,6 +90,7 @@ export type Database = {
           followers_count?: string | null
           id?: string
           images?: string[] | null
+          payment_info?: string | null
           platform_url?: string | null
           price?: number
           seller_id?: string
@@ -230,6 +233,7 @@ export type Database = {
           id: string
           is_restricted: boolean | null
           phone: string | null
+          restriction_reason: string | null
           updated_at: string
           user_id: string
         }
@@ -240,6 +244,7 @@ export type Database = {
           id?: string
           is_restricted?: boolean | null
           phone?: string | null
+          restriction_reason?: string | null
           updated_at?: string
           user_id: string
         }
@@ -250,6 +255,7 @@ export type Database = {
           id?: string
           is_restricted?: boolean | null
           phone?: string | null
+          restriction_reason?: string | null
           updated_at?: string
           user_id?: string
         }
@@ -295,6 +301,33 @@ export type Database = {
             referencedColumns: ["id"]
           },
         ]
+      }
+      support_messages: {
+        Row: {
+          created_at: string | null
+          id: string
+          is_read: boolean
+          message: string | null
+          sender_id: string | null
+          user_id: string | null
+        }
+        Insert: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          sender_id?: string | null
+          user_id?: string | null
+        }
+        Update: {
+          created_at?: string | null
+          id?: string
+          is_read?: boolean
+          message?: string | null
+          sender_id?: string | null
+          user_id?: string | null
+        }
+        Relationships: []
       }
       user_roles: {
         Row: {

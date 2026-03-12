@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Send, Key, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, MessageSquare, X, Check, CheckCheck } from "lucide-react";
+import { Send, Key, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, MessageSquareText, X, Check, CheckCheck, Lock, Flag } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -54,7 +54,6 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const hasCredentials = messages.some(m => m.is_credentials);
   const isCompleted = ["completed", "refunded", "cancelled"].includes(orderStatus);
 
-  // Unread = messages sent by the OTHER party that I haven't read
   const unreadCount = user ? messages.filter(m => m.sender_id !== user.id && !m.is_read).length : 0;
 
   const fetchMessages = useCallback(async () => {
@@ -69,7 +68,6 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
 
   useEffect(() => {
     fetchMessages();
-
     const channel = supabase
       .channel(`order-chat-${orderId}`)
       .on(
@@ -78,7 +76,6 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
         () => fetchMessages()
       )
       .subscribe();
-
     return () => { supabase.removeChannel(channel); };
   }, [orderId, fetchMessages]);
 
@@ -88,7 +85,6 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     }
   }, [messages]);
 
-  // Mark messages as read when chat is open (not for admin)
   useEffect(() => {
     if (!chatOpen || !user || isAdminView) return;
     const unread = messages.filter(m => m.sender_id !== user.id && !m.is_read);
@@ -104,11 +100,9 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const sendMessage = async () => {
     if (!newMessage.trim() || !user) return;
     setSending(true);
-
     if (isCredential && isSeller) {
       await supabase.from("orders").update({ status: "delivering" as any }).eq("id", orderId);
     }
-
     const { error } = await (supabase as any).from("order_messages").insert({
       order_id: orderId,
       sender_id: user.id,
@@ -126,15 +120,12 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
 
   const confirmOrder = async () => {
     if (!user) return;
-
     await (supabase as any).from("order_messages").insert({
       order_id: orderId,
       sender_id: user.id,
       message: "✅ ক্রেতা অর্ডার কনফার্ম করেছে। অর্ডার সম্পন্ন হয়েছে!",
       is_credentials: false,
     });
-
-    // Notify seller
     const { data: orderData } = await supabase.from("orders").select("seller_id, id").eq("id", orderId).maybeSingle();
     if (orderData) {
       await supabase.rpc("create_notification", {
@@ -145,7 +136,6 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
         _reference_id: orderData.id,
       });
     }
-
     const { error } = await supabase
       .from("orders")
       .update({ buyer_confirmed: true, status: "completed" as any })
@@ -182,43 +172,37 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     return "সিস্টেম";
   };
 
-  const getSenderColor = (senderId: string) => {
-    if (senderId === buyerId) return "bg-blue-500/20 text-blue-400";
-    if (senderId === sellerId) return "bg-emerald-500/20 text-emerald-400";
-    return "bg-primary/20 text-primary";
-  };
-
   const getMessageStatus = (msg: Message) => {
     if (!user || msg.sender_id !== user.id) return null;
     if (msg.is_read) {
-      return <span className="text-[9px] text-primary flex items-center gap-0.5"><CheckCheck className="w-3 h-3" /> সিন</span>;
+      return <span className="text-[9px] text-primary flex items-center gap-0.5 mt-0.5"><CheckCheck className="w-3 h-3" /> সিন</span>;
     }
-    return <span className="text-[9px] text-muted-foreground flex items-center gap-0.5"><Check className="w-3 h-3" /> সেন্ট</span>;
+    return <span className="text-[9px] text-muted-foreground flex items-center gap-0.5 mt-0.5"><Check className="w-3 h-3" /> সেন্ট</span>;
   };
 
   const canChat = ["payment_confirmed", "delivering", "delivered", "disputed"].includes(orderStatus);
 
-  // Collapsed view
+  // Collapsed view — improved icon and style
   if (!chatOpen && !isAdminView) {
     return (
-      <div className="flex items-center gap-2">
+      <div className="flex items-center gap-3">
         <Button
           variant="outline"
           size="sm"
-          className="gap-2 text-xs"
+          className="relative gap-2 text-xs rounded-full px-4 py-2 border-primary/30 hover:border-primary hover:bg-primary/5 transition-all duration-200 shadow-sm"
           onClick={() => setChatOpen(true)}
         >
-          <MessageSquare className="w-4 h-4" />
-          💬 চ্যাট খুলুন
+          <MessageSquareText className="w-4 h-4 text-primary" />
+          <span className="font-medium">চ্যাট খুলুন</span>
           {unreadCount > 0 && (
-            <Badge variant="secondary" className="h-5 min-w-[20px] p-0 flex items-center justify-center text-[10px] bg-destructive text-destructive-foreground">
+            <span className="absolute -top-1.5 -right-1.5 min-w-[18px] h-[18px] flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1 animate-pulse shadow-md">
               {unreadCount}
-            </Badge>
+            </span>
           )}
         </Button>
         {isCompleted && (
-          <Badge variant="outline" className="text-xs bg-green-500/10 text-green-400 border-green-500/30">
-            ✅ সম্পন্ন
+          <Badge variant="outline" className="text-xs rounded-full bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-1">
+            <CheckCircle2 className="w-3 h-3" /> সম্পন্ন
           </Badge>
         )}
       </div>
@@ -226,24 +210,32 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   }
 
   return (
-    <div className="border border-border rounded-xl overflow-hidden bg-card">
-      <div className="px-4 py-3 border-b border-border flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-foreground flex items-center gap-2">
-          💬 অর্ডার চ্যাট
-          {isAdminView && <Badge variant="outline" className="text-[10px]">শুধু দেখার জন্য</Badge>}
-          {isCompleted && <Badge variant="outline" className="text-[10px] bg-green-500/10 text-green-400 border-green-500/30">সম্পন্ন</Badge>}
+    <div className="border border-border rounded-2xl overflow-hidden bg-card shadow-lg">
+      {/* Header */}
+      <div className="px-4 py-3 border-b border-border bg-gradient-to-r from-primary/5 to-accent/5 flex items-center justify-between">
+        <h4 className="text-sm font-bold text-foreground flex items-center gap-2">
+          <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
+            <MessageSquareText className="w-3.5 h-3.5 text-primary" />
+          </div>
+          <span>অর্ডার চ্যাট</span>
+          {isAdminView && <Badge variant="secondary" className="text-[10px] rounded-full">শুধু দেখার জন্য</Badge>}
+          {isCompleted && (
+            <Badge variant="outline" className="text-[10px] rounded-full bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-0.5">
+              <CheckCircle2 className="w-2.5 h-2.5" /> সম্পন্ন
+            </Badge>
+          )}
         </h4>
-        <div className="flex items-center gap-2">
+        <div className="flex items-center gap-1.5">
           {canChat && isSeller && (
-            <Badge variant="outline" className="text-xs gap-1 bg-accent/10 text-accent border-accent/20">
-              <Key className="w-3 h-3" /> ক্রেডেনশিয়াল পাঠাতে পারেন
+            <Badge variant="outline" className="text-[10px] gap-1 rounded-full bg-amber-500/10 text-amber-500 border-amber-500/20">
+              <Key className="w-3 h-3" /> ক্রেডেনশিয়াল
             </Badge>
           )}
           {isParticipant && canChat && (
             <Dialog open={reportOpen} onOpenChange={setReportOpen}>
               <DialogTrigger asChild>
-                <Button size="sm" variant="outline" className="h-7 text-xs gap-1 text-destructive border-destructive/30 hover:bg-destructive/10">
-                  <AlertTriangle className="w-3 h-3" /> রিপোর্ট
+                <Button size="sm" variant="ghost" className="h-7 w-7 p-0 text-destructive hover:bg-destructive/10 rounded-full">
+                  <Flag className="w-3.5 h-3.5" />
                 </Button>
               </DialogTrigger>
               <DialogContent>
@@ -273,54 +265,60 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
             </Dialog>
           )}
           {!isAdminView && (
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setChatOpen(false)}>
+            <Button size="icon" variant="ghost" className="h-7 w-7 rounded-full hover:bg-muted" onClick={() => setChatOpen(false)}>
               <X className="w-4 h-4" />
             </Button>
           )}
         </div>
       </div>
 
-      <div ref={scrollRef} className="h-64 overflow-y-auto p-4 space-y-3">
+      {/* Messages area */}
+      <div ref={scrollRef} className="h-72 overflow-y-auto p-4 space-y-3 bg-gradient-to-b from-background to-muted/20">
         {loading ? (
-          <div className="flex justify-center py-8">
+          <div className="flex justify-center py-12">
             <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
           </div>
         ) : messages.length === 0 ? (
-          <p className="text-xs text-muted-foreground text-center py-8">
-            {canChat ? "এখনো কোনো মেসেজ নেই। কথোপকথন শুরু করুন!" : "পেমেন্ট কনফার্ম হলে চ্যাট সক্রিয় হবে।"}
-          </p>
+          <div className="flex flex-col items-center justify-center py-12 text-center">
+            <div className="w-12 h-12 rounded-full bg-muted/50 flex items-center justify-center mb-3">
+              <MessageSquareText className="w-6 h-6 text-muted-foreground/40" />
+            </div>
+            <p className="text-xs text-muted-foreground">
+              {canChat ? "এখনো কোনো মেসেজ নেই। কথোপকথন শুরু করুন!" : "পেমেন্ট কনফার্ম হলে চ্যাট সক্রিয় হবে।"}
+            </p>
+          </div>
         ) : (
           messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
+            const isBuyerMsg = msg.sender_id === buyerId;
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                <div className="flex items-center gap-1.5 mb-1">
-                  <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${getSenderColor(msg.sender_id)}`}>
+                <div className="flex items-center gap-1.5 mb-0.5">
+                  <span className={`text-[10px] font-semibold ${isBuyerMsg ? "text-blue-500" : "text-emerald-500"}`}>
                     {getSenderLabel(msg.sender_id)}
-                  </Badge>
-                  <span className="text-[10px] text-muted-foreground">
+                  </span>
+                  <span className="text-[10px] text-muted-foreground/60">
                     {new Date(msg.created_at).toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" })}
                   </span>
                 </div>
                 <div
-                  className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${
+                  className={`max-w-[80%] rounded-2xl px-3.5 py-2 text-sm shadow-sm ${
                     msg.is_credentials
-                      ? "bg-accent/10 border border-accent/30 text-foreground"
+                      ? "bg-amber-500/10 border border-amber-500/30 text-foreground rounded-tl-sm"
                       : isMe
-                      ? "bg-primary/10 text-foreground"
-                      : "bg-secondary text-foreground"
+                      ? "bg-primary text-primary-foreground rounded-tr-sm"
+                      : "bg-secondary text-foreground rounded-tl-sm"
                   }`}
                 >
                   {msg.is_credentials && (
-                    <div className="flex items-center gap-1 text-[10px] text-accent font-semibold mb-1">
-                      <Key className="w-3 h-3" /> অ্যাকাউন্ট ক্রেডেনশিয়াল
+                    <div className="flex items-center gap-1 text-[10px] text-amber-500 font-semibold mb-1">
+                      <Lock className="w-3 h-3" /> অ্যাকাউন্ট ক্রেডেনশিয়াল
                     </div>
                   )}
                   <p className={`whitespace-pre-wrap break-words ${msg.is_credentials ? "font-mono text-xs" : ""}`}>
                     {msg.message}
                   </p>
                 </div>
-                {/* Message status - only show for own messages, not in admin view */}
                 {!isAdminView && getMessageStatus(msg)}
               </div>
             );
@@ -328,16 +326,16 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
         )}
       </div>
 
-      {/* Buyer confirm button */}
+      {/* Buyer confirm */}
       {isBuyer && hasCredentials && !isCompleted && (
-        <div className="border-t border-border p-3 bg-accent/5">
+        <div className="border-t border-border p-3 bg-emerald-500/5">
           <div className="flex items-center justify-between gap-3">
             <p className="text-xs text-muted-foreground">
               সেলার ক্রেডেনশিয়াল পাঠিয়েছে। চেক করে কনফার্ম করুন।
             </p>
             <Button
               size="sm"
-              className="gradient-primary text-primary-foreground border-0 text-xs gap-1 shrink-0"
+              className="bg-emerald-600 hover:bg-emerald-700 text-white text-xs gap-1 shrink-0 rounded-full shadow-md"
               onClick={confirmOrder}
             >
               <CheckCircle2 className="w-3.5 h-3.5" /> কনফার্ম করুন
@@ -348,17 +346,17 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
 
       {/* Chat input */}
       {canChat && isParticipant && !isCompleted ? (
-        <div className="border-t border-border p-3">
+        <div className="border-t border-border p-3 bg-card">
           {isSeller && (
-            <label className="flex items-center gap-2 mb-2 cursor-pointer">
+            <label className="flex items-center gap-2 mb-2 cursor-pointer group">
               <input
                 type="checkbox"
                 checked={isCredential}
                 onChange={(e) => setIsCredential(e.target.checked)}
-                className="rounded border-border"
+                className="rounded border-border accent-amber-500"
               />
-              <span className="text-xs text-muted-foreground flex items-center gap-1">
-                <Key className="w-3 h-3" /> ক্রেডেনশিয়াল হিসেবে পাঠান (ইউজারনেম/পাসওয়ার্ড)
+              <span className="text-[11px] text-muted-foreground flex items-center gap-1 group-hover:text-foreground transition-colors">
+                <Key className="w-3 h-3 text-amber-500" /> ক্রেডেনশিয়াল হিসেবে পাঠান
               </span>
             </label>
           )}
@@ -368,11 +366,11 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
               value={newMessage}
               onChange={(e) => setNewMessage(e.target.value)}
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-              className="text-sm"
+              className="text-sm rounded-full bg-secondary/50 border-0 focus-visible:ring-primary/30"
             />
             <Button
               size="icon"
-              className="gradient-primary text-primary-foreground border-0 shrink-0"
+              className="gradient-primary text-primary-foreground border-0 shrink-0 rounded-full shadow-md h-10 w-10"
               onClick={sendMessage}
               disabled={sending || !newMessage.trim()}
             >
@@ -381,24 +379,24 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
           </div>
         </div>
       ) : isCompleted ? (
-        <div className="border-t border-border p-3 text-center">
+        <div className="border-t border-border p-3 text-center bg-emerald-500/5">
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-            <CheckCircle2 className="w-3.5 h-3.5 text-green-400" />
+            <CheckCircle2 className="w-3.5 h-3.5 text-emerald-500" />
             অর্ডার সম্পন্ন হয়েছে — চ্যাট বন্ধ
           </p>
         </div>
       ) : !canChat ? (
-        <div className="border-t border-border p-3 text-center">
+        <div className="border-t border-border p-3 text-center bg-muted/30">
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5" />
+            <ShieldCheck className="w-3.5 h-3.5 text-primary" />
             পেমেন্ট কনফার্ম হলে চ্যাট সক্রিয় হবে
           </p>
         </div>
       ) : isAdminView ? (
-        <div className="border-t border-border p-3 text-center">
+        <div className="border-t border-border p-3 text-center bg-muted/30">
           <p className="text-xs text-muted-foreground flex items-center justify-center gap-1.5">
-            <ShieldCheck className="w-3.5 h-3.5" />
-            অ্যাডমিন শুধু চ্যাট দেখতে পারবেন, মেসেজ পাঠাতে পারবেন না
+            <ShieldCheck className="w-3.5 h-3.5 text-primary" />
+            অ্যাডমিন শুধু চ্যাট দেখতে পারবেন
           </p>
         </div>
       ) : null}

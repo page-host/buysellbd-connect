@@ -21,6 +21,7 @@ const CreateListing = () => {
   const [customCategory, setCustomCategory] = useState("");
   const [platformUrl, setPlatformUrl] = useState("");
   const [price, setPrice] = useState("");
+  const [paymentInfo, setPaymentInfo] = useState("");
   const [loading, setLoading] = useState(false);
   const [restricted, setRestricted] = useState(false);
 
@@ -77,6 +78,7 @@ const CreateListing = () => {
       custom_category: category === "other" ? customCategory.trim() : null,
       platform_url: platformUrl.trim() || null,
       price: parseFloat(price),
+      payment_info: paymentInfo.trim() || null,
     } as any);
     setLoading(false);
     if (error) {
@@ -149,6 +151,19 @@ const CreateListing = () => {
               <div className="space-y-2">
                 <Label htmlFor="price">মূল্য (৳) *</Label>
                 <Input id="price" type="number" min="1" step="0.01" placeholder="যেমন: 45000" value={price} onChange={(e) => setPrice(e.target.value)} required />
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="paymentInfo">পেমেন্ট তথ্য (গোপনীয়)</Label>
+                <Textarea
+                  id="paymentInfo"
+                  placeholder="আপনার পেমেন্ট তথ্য লিখুন (যেমন: বিকাশ নম্বর, নগদ নম্বর ইত্যাদি)। এটি শুধুমাত্র অ্যাডমিন দেখতে পারবে।"
+                  value={paymentInfo}
+                  onChange={(e) => setPaymentInfo(e.target.value)}
+                  rows={3}
+                  maxLength={1000}
+                />
+                <p className="text-xs text-muted-foreground">🔒 এই তথ্য শুধুমাত্র অর্ডার হলে অ্যাডমিনের কাছে দৃশ্যমান হবে।</p>
               </div>
 
               <Button type="submit" className="w-full h-12 gradient-primary text-primary-foreground border-0 font-bold text-base" disabled={loading}>
