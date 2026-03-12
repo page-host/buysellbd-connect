@@ -4,42 +4,7 @@ import { motion } from "framer-motion";
 import { Search, CreditCard, ShieldCheck, ArrowRight, CheckCircle2 } from "lucide-react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-
-const steps = [
-  {
-    step: "০১",
-    icon: Search,
-    title: "অ্যাকাউন্ট খুঁজুন ও নির্বাচন করুন",
-    desc: "মার্কেটপ্লেস থেকে আপনার পছন্দের ফেসবুক পেজ, ইউটিউব চ্যানেল, ইনস্টাগ্রাম অ্যাকাউন্ট বা গেমিং আইডি খুঁজে নিন। প্রতিটি লিস্টিং-এ ফলোয়ার, বয়স, এবং রেটিং দেখতে পাবেন।",
-    details: [
-      "ক্যাটাগরি অনুযায়ী ফিল্টার করুন",
-      "মূল্য ও ফলোয়ার অনুযায়ী সর্ট করুন",
-      "ভেরিফাইড সেলারদের অগ্রাধিকার দিন",
-    ],
-  },
-  {
-    step: "০২",
-    icon: CreditCard,
-    title: "নিরাপদে পেমেন্ট করুন",
-    desc: "বিকাশ, নগদ, রকেট অথবা USDT/TRX-এ পেমেন্ট করুন। আপনার টাকা এসক্রো সিস্টেমে অ্যাডমিনের কাছে নিরাপদ থাকবে। বিক্রেতা সরাসরি টাকা পাবে না।",
-    details: [
-      "বিকাশ / নগদ / রকেট সাপোর্ট",
-      "USDT / TRX ক্রিপ্টো সাপোর্ট",
-      "এসক্রো সিস্টেমে ১০০% নিরাপদ",
-    ],
-  },
-  {
-    step: "০৩",
-    icon: CheckCircle2,
-    title: "অ্যাকাউন্ট গ্রহণ করুন",
-    desc: "পেমেন্ট ভেরিফাই হলে বিক্রেতা আপনাকে অ্যাকাউন্ট ট্রান্সফার করবে। আপনি কনফার্ম করলে বিক্রেতার কাছে টাকা রিলিজ হবে। সমস্যা হলে ডিসপিউট রেইজ করতে পারবেন।",
-    details: [
-      "বিক্রেতা অ্যাকাউন্ট ক্রেডেনশিয়াল দেবে",
-      "আপনি ভেরিফাই করে কনফার্ম করবেন",
-      "সমস্যা হলে রিফান্ড পাবেন",
-    ],
-  },
-];
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -49,14 +14,40 @@ const fadeUp = {
 };
 
 const HowItWorks = () => {
+  const { t } = useLanguage();
+
+  const steps = [
+    {
+      step: "০১",
+      icon: Search,
+      title: t("hiw.step1_title"),
+      desc: t("hiw.step1_desc"),
+      details: [t("hiw.step1_d1"), t("hiw.step1_d2"), t("hiw.step1_d3")],
+    },
+    {
+      step: "০২",
+      icon: CreditCard,
+      title: t("hiw.step2_title"),
+      desc: t("hiw.step2_desc"),
+      details: [t("hiw.step2_d1"), t("hiw.step2_d2"), t("hiw.step2_d3")],
+    },
+    {
+      step: "০৩",
+      icon: CheckCircle2,
+      title: t("hiw.step3_title"),
+      desc: t("hiw.step3_desc"),
+      details: [t("hiw.step3_d1"), t("hiw.step3_d2"), t("hiw.step3_d3")],
+    },
+  ];
+
   return (
     <div className="min-h-screen bg-background">
       <Navbar />
       <div className="pt-20 pb-10">
         <div className="container mx-auto px-4 max-w-4xl">
           <motion.div {...fadeUp} className="text-center mb-12">
-            <h1 className="text-3xl font-extrabold text-foreground mb-3">কিভাবে কাজ করে?</h1>
-            <p className="text-muted-foreground max-w-lg mx-auto">মাত্র ৩ টি সহজ ধাপে আপনার লেনদেন নিরাপদে সম্পন্ন করুন</p>
+            <h1 className="text-3xl font-extrabold text-foreground mb-3">{t("hiw.title")}</h1>
+            <p className="text-muted-foreground max-w-lg mx-auto">{t("hiw.subtitle")}</p>
           </motion.div>
 
           <div className="space-y-8">
@@ -89,7 +80,7 @@ const HowItWorks = () => {
           <motion.div {...fadeUp} transition={{ delay: 0.5 }} className="text-center mt-12">
             <Link to="/marketplace">
               <Button size="lg" className="gradient-primary text-primary-foreground border-0 font-bold px-8 rounded-xl gap-2">
-                মার্কেটপ্লেস ব্রাউজ করুন <ArrowRight className="w-4 h-4" />
+                {t("hiw.browse_btn")} <ArrowRight className="w-4 h-4" />
               </Button>
             </Link>
           </motion.div>

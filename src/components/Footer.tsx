@@ -1,32 +1,31 @@
 import { Link } from "react-router-dom";
-import { ShoppingBag } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import logo from "@/assets/eye.png";
+
 export function Footer() {
+  const { t } = useLanguage();
+
   return (
     <footer className="bg-card border-t border-border">
       <div className="container mx-auto px-4 py-12">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-8">
           <div>
             <div className="flex items-center gap-2 mb-4">
-              <img
-              src={logo}
-              alt="SAEM Logo"
-              className="h-20 w-auto object-contain mix-blend-multiply"
-              />
+              <img src={logo} alt="SAEM Logo" className="h-20 w-auto object-contain mix-blend-multiply" />
             </div>
-            <p className="text-sm text-muted-foreground leading-relaxed">
-              সোশ্যাল মিডিয়া অ্যাকাউন্ট ও ডিজিটাল অ্যাসেট কেনা-বেচার নিরাপদ মার্কেটপ্লেস।
-            </p>
+            <p className="text-sm text-muted-foreground leading-relaxed">{t("footer.desc")}</p>
           </div>
 
           <div>
-            <h4 className="font-bold text-foreground text-sm mb-4">মার্কেটপ্লেস</h4>
+            <h4 className="font-bold text-foreground text-sm mb-4">{t("footer.marketplace")}</h4>
             <ul className="space-y-2">
               {[
-                { label: "ফেসবুক পেজ", href: "/marketplace?category=facebook_page" },
-                { label: "ইউটিউব চ্যানেল", href: "/marketplace?category=youtube_channel" },
-                { label: "ইনস্টাগ্রাম", href: "/marketplace?category=instagram" },
-                { label: "গেমিং আইডি", href: "/marketplace?category=gaming_id" },
+                { label: t("cat.facebook_page"), href: "/marketplace?category=facebook_page" },
+                { label: t("cat.youtube_channel"), href: "/marketplace?category=youtube_channel" },
+                { label: t("cat.instagram"), href: "/marketplace?category=instagram" },
+                { label: t("cat.twitter"), href: "/marketplace?category=twitter" },
+                { label: t("cat.linkedin"), href: "/marketplace?category=linkedin" },
+                { label: t("cat.gaming_id"), href: "/marketplace?category=gaming_id" },
               ].map((item) => (
                 <li key={item.label}>
                   <Link to={item.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -38,13 +37,13 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-bold text-foreground text-sm mb-4">সাপোর্ট</h4>
+            <h4 className="font-bold text-foreground text-sm mb-4">{t("footer.support")}</h4>
             <ul className="space-y-2">
               {[
-                { label: "কিভাবে কাজ করে", href: "/how-it-works" },
-                { label: "এসক্রো সিস্টেম", href: "/how-it-works" },
-                { label: "প্রাইভেসি পলিসি", href: "/contact" },
-                { label: "যোগাযোগ", href: "/contact" },
+                { label: t("nav.how_it_works"), href: "/how-it-works" },
+                { label: t("footer.escrow"), href: "/how-it-works" },
+                { label: t("footer.privacy"), href: "/contact" },
+                { label: t("nav.contact"), href: "/contact" },
               ].map((item) => (
                 <li key={item.label}>
                   <Link to={item.href} className="text-sm text-muted-foreground hover:text-foreground transition-colors">
@@ -56,13 +55,10 @@ export function Footer() {
           </div>
 
           <div>
-            <h4 className="font-bold text-foreground text-sm mb-4">পেমেন্ট মেথড</h4>
+            <h4 className="font-bold text-foreground text-sm mb-4">{t("footer.payment_methods")}</h4>
             <div className="flex flex-wrap gap-2">
               {["বিকাশ", "নগদ", "রকেট", "USDT", "TRX"].map((method) => (
-                <span
-                  key={method}
-                  className="px-3 py-1.5 rounded-full bg-secondary text-xs font-medium text-secondary-foreground"
-                >
+                <span key={method} className="px-3 py-1.5 rounded-full bg-secondary text-xs font-medium text-secondary-foreground">
                   {method}
                 </span>
               ))}
@@ -71,9 +67,7 @@ export function Footer() {
         </div>
 
         <div className="border-t border-border mt-8 pt-8 text-center">
-          <p className="text-xs text-muted-foreground">
-            © 2026 SAEM - Social Account Exchange & Marketplace। সর্বস্বত্ব সংরক্ষিত।
-          </p>
+          <p className="text-xs text-muted-foreground">{t("footer.copyright")}</p>
         </div>
       </div>
     </footer>

@@ -1,21 +1,15 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
 import { Button } from "@/components/ui/button";
-import { Menu, X, ShoppingBag, LogOut, User, ShieldCheck, CheckCircle2, Clock, Calendar } from "lucide-react";
+import { Menu, X, LogOut, User, ShieldCheck, CheckCircle2, Clock, Calendar, Globe } from "lucide-react";
 import { motion, AnimatePresence } from "framer-motion";
 import { useAuth } from "@/hooks/useAuth";
 import { supabase } from "@/integrations/supabase/client";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Popover, PopoverContent, PopoverTrigger } from "@/components/ui/popover";
 import { NotificationBell } from "@/components/NotificationBell";
+import { useLanguage } from "@/contexts/LanguageContext";
 import logo from "@/assets/eye.png";
-
-const navLinks = [
-  { label: "হোম", href: "/" },
-  { label: "মার্কেটপ্লেস", href: "/marketplace" },
-  { label: "কিভাবে কাজ করে", href: "/how-it-works" },
-  { label: "যোগাযোগ", href: "/contact" },
-];
 
 export function Navbar() {
   const [mobileOpen, setMobileOpen] = useState(false);
@@ -24,6 +18,14 @@ export function Navbar() {
   const [completedOrders, setCompletedOrders] = useState(0);
   const [pendingOrders, setPendingOrders] = useState(0);
   const { user, signOut } = useAuth();
+  const { lang, setLang, t } = useLanguage();
+
+  const navLinks = [
+    { label: t("nav.home"), href: "/" },
+    { label: t("nav.marketplace"), href: "/marketplace" },
+    { label: t("nav.how_it_works"), href: "/how-it-works" },
+    { label: t("nav.contact"), href: "/contact" },
+  ];
 
   useEffect(() => {
     if (user) {
@@ -47,7 +49,7 @@ export function Navbar() {
   }, [user]);
 
   const joinDate = profile?.created_at
-    ? new Date(profile.created_at).toLocaleDateString("bn-BD", { year: "numeric", month: "long" })
+    ? new Date(profile.created_at).toLocaleDateString(lang === "bn" ? "bn-BD" : "en-US", { year: "numeric", month: "long" })
     : "";
 
   const ProfileDropdown = () => (
@@ -77,17 +79,17 @@ export function Navbar() {
         <div className="space-y-2 mb-3">
           <div className="flex items-center gap-2 text-xs">
             <CheckCircle2 className="w-3.5 h-3.5 text-green-500" />
-            <span className="text-muted-foreground">সম্পন্ন অর্ডার:</span>
+            <span className="text-muted-foreground">{t("nav.completed_orders")}:</span>
             <span className="font-bold text-foreground ml-auto">{completedOrders}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Clock className="w-3.5 h-3.5 text-yellow-500" />
-            <span className="text-muted-foreground">চলমান অর্ডার:</span>
+            <span className="text-muted-foreground">{t("nav.active_orders")}:</span>
             <span className="font-bold text-foreground ml-auto">{pendingOrders}</span>
           </div>
           <div className="flex items-center gap-2 text-xs">
             <Calendar className="w-3.5 h-3.5 text-primary" />
-            <span className="text-muted-foreground">যোগদান:</span>
+            <span className="text-muted-foreground">{t("nav.joined")}:</span>
             <span className="font-bold text-foreground ml-auto">{joinDate}</span>
           </div>
         </div>
@@ -95,18 +97,18 @@ export function Navbar() {
         <div className="border-t border-border pt-3 space-y-1">
           <Link to="/dashboard" className="block">
             <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs h-8">
-              <User className="w-3.5 h-3.5" /> ড্যাশবোর্ড
+              <User className="w-3.5 h-3.5" /> {t("nav.dashboard")}
             </Button>
           </Link>
           {isAdmin && (
             <Link to="/admin" className="block">
               <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs h-8 text-primary">
-                <ShieldCheck className="w-3.5 h-3.5" /> অ্যাডমিন
+                <ShieldCheck className="w-3.5 h-3.5" /> {t("nav.admin")}
               </Button>
             </Link>
           )}
           <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs h-8 text-destructive" onClick={signOut}>
-            <LogOut className="w-3.5 h-3.5" /> লগআউট
+            <LogOut className="w-3.5 h-3.5" /> {t("nav.logout")}
           </Button>
         </div>
       </PopoverContent>
@@ -133,6 +135,15 @@ export function Navbar() {
         </div>
 
         <div className="hidden md:flex items-center gap-3">
+          {/* Language Toggle */}
+          <button
+            onClick={() => setLang(lang === "bn" ? "en" : "bn")}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-full border border-border text-xs font-semibold text-muted-foreground hover:text-foreground hover:border-primary/50 transition-colors"
+          >
+            <Globe className="w-3.5 h-3.5" />
+            {lang === "bn" ? "EN" : "বাং"}
+          </button>
+
           {user ? (
             <div className="flex items-center gap-2">
               <NotificationBell />
@@ -141,16 +152,24 @@ export function Navbar() {
           ) : (
             <>
               <Link to="/login">
-                <Button variant="ghost" size="sm">লগইন</Button>
+                <Button variant="ghost" size="sm">{t("nav.login")}</Button>
               </Link>
               <Link to="/signup">
-                <Button size="sm" className="gradient-primary text-primary-foreground border-0">সাইন আপ</Button>
+                <Button size="sm" className="gradient-primary text-primary-foreground border-0">{t("nav.signup")}</Button>
               </Link>
             </>
           )}
         </div>
 
         <div className="flex items-center gap-1 md:hidden">
+          {/* Mobile Language Toggle */}
+          <button
+            onClick={() => setLang(lang === "bn" ? "en" : "bn")}
+            className="flex items-center gap-1 px-2 py-1 rounded-full border border-border text-[10px] font-semibold text-muted-foreground"
+          >
+            <Globe className="w-3 h-3" />
+            {lang === "bn" ? "EN" : "বাং"}
+          </button>
           {user && <NotificationBell />}
           {user && <ProfileDropdown />}
           <button onClick={() => setMobileOpen(!mobileOpen)} className="text-foreground">
@@ -176,10 +195,10 @@ export function Navbar() {
               {!user && (
                 <div className="flex gap-2 pt-2">
                   <Link to="/login" className="flex-1" onClick={() => setMobileOpen(false)}>
-                    <Button variant="ghost" size="sm" className="w-full">লগইন</Button>
+                    <Button variant="ghost" size="sm" className="w-full">{t("nav.login")}</Button>
                   </Link>
                   <Link to="/signup" className="flex-1" onClick={() => setMobileOpen(false)}>
-                    <Button size="sm" className="w-full gradient-primary text-primary-foreground border-0">সাইন আপ</Button>
+                    <Button size="sm" className="w-full gradient-primary text-primary-foreground border-0">{t("nav.signup")}</Button>
                   </Link>
                 </div>
               )}

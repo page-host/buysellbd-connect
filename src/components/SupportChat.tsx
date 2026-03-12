@@ -3,10 +3,11 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { MessageCircle, Send, Loader2, X, Headphones } from "lucide-react";
+import { Send, Loader2, X, Headphones } from "lucide-react";
 import { Link } from "react-router-dom";
+import { motion, AnimatePresence } from "framer-motion";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 interface SupportMessage {
   id: string;
@@ -17,8 +18,26 @@ interface SupportMessage {
   created_at: string;
 }
 
+function timeAgo(dateStr: string, lang: string): string {
+  const diff = Date.now() - new Date(dateStr).getTime();
+  const mins = Math.floor(diff / 60000);
+  if (lang === "bn") {
+    if (mins < 1) return "এইমাত্র";
+    if (mins < 60) return `${mins} মিনিট আগে`;
+    const hrs = Math.floor(mins / 60);
+    if (hrs < 24) return `${hrs} ঘণ্টা আগে`;
+    return `${Math.floor(hrs / 24)} দিন আগে`;
+  }
+  if (mins < 1) return "Just now";
+  if (mins < 60) return `${mins}m ago`;
+  const hrs = Math.floor(mins / 60);
+  if (hrs < 24) return `${hrs}h ago`;
+  return `${Math.floor(hrs / 24)}d ago`;
+}
+
 export function SupportChat() {
   const { user } = useAuth();
+  const { t, lang } = useLanguage();
   const [open, setOpen] = useState(false);
   const [messages, setMessages] = useState<SupportMessage[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -26,6 +45,8 @@ export function SupportChat() {
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
   const scrollRef = useRef<HTMLDivElement>(null);
+
+  const quickMessages = [t("support.quick1"), t("support.quick2"), t("support.quick3"), t("support.quick4")];
 
   const computeUnread = useCallback((msgs: SupportMessage[]) => {
     if (!user) return 0;
@@ -53,218 +74,188 @@ export function SupportChat() {
 
     const channel = supabase
       .channel(`support-${user.id}`)
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const newMsg = payload.new as SupportMessage;
-          setMessages(prev => {
-            // Avoid duplicates (from optimistic update)
-            if (prev.some(m => m.id === newMsg.id)) return prev;
-            const updated = [...prev, newMsg];
-            setUnreadCount(computeUnread(updated));
-            return updated;
-          });
-        }
-      )
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "support_messages", filter: `user_id=eq.${user.id}` },
-        (payload: any) => {
-          const updated = payload.new as SupportMessage;
-          setMessages(prev => {
-            const newMsgs = prev.map(m => m.id === updated.id ? updated : m);
-            setUnreadCount(computeUnread(newMsgs));
-            return newMsgs;
-          });
-        }
-      )
+      .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${user.id}` }, (payload: any) => {
+        const newMsg = payload.new as SupportMessage;
+        setMessages(prev => {
+          if (prev.some(m => m.id === newMsg.id)) return prev;
+          const updated = [...prev, newMsg];
+          setUnreadCount(computeUnread(updated));
+          return updated;
+        });
+      })
+      .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_messages", filter: `user_id=eq.${user.id}` }, (payload: any) => {
+        const updated = payload.new as SupportMessage;
+        setMessages(prev => {
+          const newMsgs = prev.map(m => m.id === updated.id ? updated : m);
+          setUnreadCount(computeUnread(newMsgs));
+          return newMsgs;
+        });
+      })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
   }, [user, fetchMessages, computeUnread]);
 
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
-    }
+    if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, open]);
 
-  // Mark messages as read when chat is opened (only messages from the OTHER side)
   useEffect(() => {
     if (!open || !user) return;
     const unread = messages.filter(m => !m.is_read && m.sender_id !== user.id);
     if (unread.length > 0) {
-      Promise.all(
-        unread.map(m => (supabase as any).from("support_messages").update({ is_read: true }).eq("id", m.id))
-      ).then(() => {
-        setMessages(prev => prev.map(m =>
-          m.sender_id !== user.id ? { ...m, is_read: true } : m
-        ));
+      Promise.all(unread.map(m => (supabase as any).from("support_messages").update({ is_read: true }).eq("id", m.id))).then(() => {
+        setMessages(prev => prev.map(m => m.sender_id !== user.id ? { ...m, is_read: true } : m));
         setUnreadCount(0);
       });
     }
   }, [open, user]);
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
-    const msgText = newMessage.trim();
+  const sendMessage = async (msgText?: string) => {
+    const text = (msgText || newMessage).trim();
+    if (!text || !user) return;
     setNewMessage("");
     setSending(true);
 
-    // Optimistic update
     const tempId = crypto.randomUUID();
-    const optimistic: SupportMessage = {
-      id: tempId,
-      user_id: user.id,
-      sender_id: user.id,
-      message: msgText,
-      is_read: false,
-      created_at: new Date().toISOString(),
-    };
+    const optimistic: SupportMessage = { id: tempId, user_id: user.id, sender_id: user.id, message: text, is_read: false, created_at: new Date().toISOString() };
     setMessages(prev => [...prev, optimistic]);
 
-    const { data, error } = await (supabase as any).from("support_messages").insert({
-      user_id: user.id,
-      sender_id: user.id,
-      message: msgText,
-    }).select().single();
-
+    const { data, error } = await (supabase as any).from("support_messages").insert({ user_id: user.id, sender_id: user.id, message: text }).select().single();
     setSending(false);
     if (error) {
-      // Remove optimistic message on error
       setMessages(prev => prev.filter(m => m.id !== tempId));
       toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
     } else if (data) {
-      // Replace optimistic with real
       setMessages(prev => prev.map(m => m.id === tempId ? data : m));
     }
   };
 
-  // Show login prompt if not logged in
   if (!user) {
     return (
       <>
         {!open && (
-          <button
-            onClick={() => setOpen(true)}
-            className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
-          >
+          <button onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform">
             <Headphones className="w-6 h-6 text-primary-foreground" />
           </button>
         )}
-        {open && (
-          <div className="fixed bottom-6 right-6 z-50 w-[340px] sm:w-[380px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "480px" }}>
-            <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-primary/5">
-              <div className="flex items-center gap-2">
-                <Headphones className="w-5 h-5 text-primary" />
-                <h4 className="text-sm font-bold text-foreground">লাইভ সাপোর্ট</h4>
+        <AnimatePresence>
+          {open && (
+            <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ duration: 0.2 }} className="fixed bottom-6 right-6 z-50 w-[340px] sm:w-[380px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "480px" }}>
+              <div className="px-4 py-3 border-b border-border flex items-center justify-between gradient-primary rounded-t-2xl">
+                <div className="flex items-center gap-2">
+                  <Headphones className="w-5 h-5 text-primary-foreground" />
+                  <h4 className="text-sm font-bold text-primary-foreground">{t("support.title")}</h4>
+                </div>
+                <Button size="icon" variant="ghost" className="h-7 w-7 text-primary-foreground hover:bg-primary-foreground/20" onClick={() => setOpen(false)}>
+                  <X className="w-4 h-4" />
+                </Button>
               </div>
-              <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setOpen(false)}>
-                <X className="w-4 h-4" />
-              </Button>
-            </div>
-            <div className="flex-1 flex flex-col items-center justify-center p-8 text-center" style={{ minHeight: "250px" }}>
-              <Headphones className="w-10 h-10 text-muted-foreground/30 mb-3" />
-              <p className="text-sm text-muted-foreground mb-4">লাইভ সাপোর্ট ব্যবহার করতে লগইন করুন।</p>
-              <Link to="/login">
-                <Button className="gradient-primary text-primary-foreground border-0">লগইন করুন</Button>
-              </Link>
-            </div>
-          </div>
-        )}
+              <div className="flex-1 flex flex-col items-center justify-center p-8 text-center" style={{ minHeight: "250px" }}>
+                <Headphones className="w-10 h-10 text-muted-foreground/30 mb-3" />
+                <p className="text-sm text-muted-foreground mb-4">{t("support.login_msg")}</p>
+                <Link to="/login">
+                  <Button className="gradient-primary text-primary-foreground border-0">{t("nav.login")}</Button>
+                </Link>
+              </div>
+            </motion.div>
+          )}
+        </AnimatePresence>
       </>
     );
   }
 
   return (
     <>
-      {/* Floating button */}
       {!open && (
-        <button
-          onClick={() => setOpen(true)}
-          className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform"
-        >
+        <motion.button initial={{ scale: 0 }} animate={{ scale: 1 }} onClick={() => setOpen(true)} className="fixed bottom-6 right-6 z-50 w-14 h-14 rounded-full gradient-primary shadow-lg flex items-center justify-center hover:scale-105 transition-transform">
           <Headphones className="w-6 h-6 text-primary-foreground" />
           {unreadCount > 0 && (
-            <span className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
+            <motion.span initial={{ scale: 0 }} animate={{ scale: 1 }} className="absolute -top-1 -right-1 min-w-[20px] h-5 flex items-center justify-center rounded-full bg-destructive text-destructive-foreground text-[10px] font-bold px-1">
               {unreadCount}
-            </span>
+            </motion.span>
           )}
-        </button>
+        </motion.button>
       )}
 
-      {/* Chat panel */}
-      {open && (
-        <div className="fixed bottom-6 right-6 z-50 w-[340px] sm:w-[380px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "480px" }}>
-          <div className="px-4 py-3 border-b border-border flex items-center justify-between bg-primary/5">
-            <div className="flex items-center gap-2">
-              <Headphones className="w-5 h-5 text-primary" />
-              <h4 className="text-sm font-bold text-foreground">লাইভ সাপোর্ট</h4>
-            </div>
-            <Button size="icon" variant="ghost" className="h-7 w-7" onClick={() => setOpen(false)}>
-              <X className="w-4 h-4" />
-            </Button>
-          </div>
-
-          <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3" style={{ minHeight: "250px", maxHeight: "340px" }}>
-            {loading ? (
-              <div className="flex justify-center py-8">
-                <Loader2 className="w-5 h-5 animate-spin text-muted-foreground" />
+      <AnimatePresence>
+        {open && (
+          <motion.div initial={{ opacity: 0, y: 30, scale: 0.95 }} animate={{ opacity: 1, y: 0, scale: 1 }} exit={{ opacity: 0, y: 30, scale: 0.95 }} transition={{ duration: 0.2 }} className="fixed bottom-6 right-6 z-50 w-[340px] sm:w-[380px] bg-card border border-border rounded-2xl shadow-2xl flex flex-col overflow-hidden" style={{ maxHeight: "520px" }}>
+            <div className="px-4 py-3 border-b border-border flex items-center justify-between gradient-primary rounded-t-2xl">
+              <div className="flex items-center gap-2">
+                <div className="relative">
+                  <Headphones className="w-5 h-5 text-primary-foreground" />
+                  <span className="absolute -bottom-0.5 -right-0.5 w-2 h-2 bg-green-400 rounded-full border border-primary" />
+                </div>
+                <div>
+                  <h4 className="text-sm font-bold text-primary-foreground">{t("support.title")}</h4>
+                  <p className="text-[10px] text-primary-foreground/70">{t("support.subtitle")}</p>
+                </div>
               </div>
-            ) : messages.length === 0 ? (
-              <div className="text-center py-8">
-                <MessageCircle className="w-8 h-8 text-muted-foreground/30 mx-auto mb-2" />
-                <p className="text-xs text-muted-foreground">আপনার সমস্যা লিখুন। অ্যাডমিন শীঘ্রই উত্তর দেবেন।</p>
-              </div>
-            ) : (
-              messages.map((msg) => {
-                const isMe = msg.sender_id === user.id;
-                return (
-                  <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
-                    <div className="flex items-center gap-1.5 mb-0.5">
-                      <Badge variant="outline" className={`text-[10px] px-1.5 py-0 ${isMe ? "bg-primary/10 text-primary" : "bg-accent/10 text-accent"}`}>
-                        {isMe ? "আপনি" : "সাপোর্ট"}
-                      </Badge>
-                      <span className="text-[10px] text-muted-foreground">
-                        {new Date(msg.created_at).toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" })}
-                      </span>
-                    </div>
-                    <div className={`max-w-[85%] rounded-xl px-3 py-2 text-sm ${isMe ? "bg-primary/10 text-foreground" : "bg-secondary text-foreground"}`}>
-                      <p className="whitespace-pre-wrap break-words">{msg.message}</p>
-                    </div>
-                    {isMe && (
-                      <span className="text-[9px] text-muted-foreground/60 mt-0.5">
-                        {msg.is_read ? "সিন ✓✓" : "সেন্ট ✓"}
-                      </span>
-                    )}
-                  </div>
-                );
-              })
-            )}
-          </div>
-
-          <div className="border-t border-border p-3">
-            <div className="flex gap-2">
-              <Input
-                placeholder="মেসেজ লিখুন..."
-                value={newMessage}
-                onChange={(e) => setNewMessage(e.target.value)}
-                onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
-                className="text-sm"
-              />
-              <Button
-                size="icon"
-                className="gradient-primary text-primary-foreground border-0 shrink-0"
-                onClick={sendMessage}
-                disabled={sending || !newMessage.trim()}
-              >
-                {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              <Button size="icon" variant="ghost" className="h-7 w-7 text-primary-foreground hover:bg-primary-foreground/20" onClick={() => setOpen(false)}>
+                <X className="w-4 h-4" />
               </Button>
             </div>
-          </div>
-        </div>
-      )}
+
+            <div ref={scrollRef} className="flex-1 overflow-y-auto p-4 space-y-3" style={{ minHeight: "250px", maxHeight: "340px" }}>
+              {loading ? (
+                <div className="flex justify-center py-8"><Loader2 className="w-5 h-5 animate-spin text-muted-foreground" /></div>
+              ) : messages.length === 0 ? (
+                <div className="text-center py-6">
+                  <div className="w-12 h-12 rounded-full bg-primary/10 flex items-center justify-center mx-auto mb-3">
+                    <Headphones className="w-6 h-6 text-primary" />
+                  </div>
+                  <p className="text-sm font-medium text-foreground mb-1">{t("support.welcome")}</p>
+                  <p className="text-xs text-muted-foreground mb-4">{t("support.welcome_msg")}</p>
+                  <div className="flex flex-wrap gap-2 justify-center">
+                    {quickMessages.map((qm, i) => (
+                      <button key={i} onClick={() => sendMessage(qm)} className="text-xs px-3 py-1.5 rounded-full border border-border bg-secondary/50 text-foreground hover:bg-primary/10 hover:border-primary/30 transition-colors">
+                        {qm}
+                      </button>
+                    ))}
+                  </div>
+                </div>
+              ) : (
+                messages.map((msg, idx) => {
+                  const isMe = msg.sender_id === user.id;
+                  const showTime = idx === 0 || new Date(msg.created_at).getTime() - new Date(messages[idx - 1].created_at).getTime() > 300000;
+                  return (
+                    <div key={msg.id}>
+                      {showTime && <p className="text-center text-[10px] text-muted-foreground/60 my-2">{timeAgo(msg.created_at, lang)}</p>}
+                      <motion.div initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
+                        <div className={`max-w-[85%] rounded-2xl px-3.5 py-2 text-sm ${isMe ? "bg-primary text-primary-foreground rounded-br-md" : "bg-secondary text-foreground rounded-bl-md"}`}>
+                          <p className="whitespace-pre-wrap break-words">{msg.message}</p>
+                        </div>
+                        <div className="flex items-center gap-1 mt-0.5 px-1">
+                          <span className="text-[9px] text-muted-foreground/60">
+                            {new Date(msg.created_at).toLocaleTimeString(lang === "bn" ? "bn-BD" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+                          </span>
+                          {isMe && <span className="text-[9px] text-muted-foreground/60">{msg.is_read ? "✓✓" : "✓"}</span>}
+                        </div>
+                      </motion.div>
+                    </div>
+                  );
+                })
+              )}
+            </div>
+
+            <div className="border-t border-border p-3">
+              <div className="flex gap-2">
+                <Input
+                  placeholder={t("support.input_placeholder")}
+                  value={newMessage}
+                  onChange={(e) => setNewMessage(e.target.value)}
+                  onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
+                  className="text-sm rounded-full bg-secondary/50"
+                />
+                <Button size="icon" className="gradient-primary text-primary-foreground border-0 shrink-0 rounded-full" onClick={() => sendMessage()} disabled={sending || !newMessage.trim()}>
+                  {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+                </Button>
+              </div>
+            </div>
+          </motion.div>
+        )}
+      </AnimatePresence>
     </>
   );
 }

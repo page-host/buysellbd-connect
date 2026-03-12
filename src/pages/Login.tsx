@@ -6,7 +6,8 @@ import { Label } from "@/components/ui/label";
 import { supabase } from "@/integrations/supabase/client";
 import { toast } from "@/hooks/use-toast";
 import { isDisposableEmail } from "@/lib/disposable-emails";
-import { ShoppingBag, Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { Mail, Lock, Eye, EyeOff } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 import logo from "@/assets/eye.png";
 
 const Login = () => {
@@ -15,6 +16,7 @@ const Login = () => {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const navigate = useNavigate();
+  const { t } = useLanguage();
 
   const handleLogin = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -37,20 +39,16 @@ const Login = () => {
       <div className="w-full max-w-md">
         <div className="text-center mb-8">
           <Link to="/" className="inline-flex items-center gap-2 mb-6">
-            <img
-            src={logo}
-            alt="SAEM Logo"
-            className="h-20 w-auto object-contain mix-blend-multiply"
-            />
+            <img src={logo} alt="SAEM Logo" className="h-20 w-auto object-contain mix-blend-multiply" />
           </Link>
-          <h1 className="text-2xl font-extrabold text-foreground">আপনার অ্যাকাউন্টে লগইন করুন</h1>
-          <p className="text-muted-foreground mt-2">স্বাগতম! লগইন করতে নিচের ফর্ম পূরণ করুন।</p>
+          <h1 className="text-2xl font-extrabold text-foreground">{t("login.title")}</h1>
+          <p className="text-muted-foreground mt-2">{t("login.subtitle")}</p>
         </div>
 
         <div className="glass-card p-6 space-y-6">
           <form onSubmit={handleLogin} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="email">ইমেইল</Label>
+              <Label htmlFor="email">{t("login.email")}</Label>
               <div className="relative">
                 <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input id="email" type="email" placeholder="you@example.com" className="pl-10" value={email} onChange={(e) => setEmail(e.target.value)} required />
@@ -58,8 +56,8 @@ const Login = () => {
             </div>
             <div className="space-y-2">
               <div className="flex justify-between">
-                <Label htmlFor="password">পাসওয়ার্ড</Label>
-                <Link to="/forgot-password" className="text-xs text-primary hover:underline">পাসওয়ার্ড ভুলে গেছেন?</Link>
+                <Label htmlFor="password">{t("login.password")}</Label>
+                <Link to="/forgot-password" className="text-xs text-primary hover:underline">{t("login.forgot")}</Link>
               </div>
               <div className="relative">
                 <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
@@ -70,13 +68,13 @@ const Login = () => {
               </div>
             </div>
             <Button type="submit" className="w-full h-11 gradient-primary text-primary-foreground border-0 font-semibold" disabled={loading}>
-              {loading ? "লগইন হচ্ছে..." : "লগইন"}
+              {loading ? t("login.loading") : t("login.btn")}
             </Button>
           </form>
 
           <p className="text-center text-sm text-muted-foreground">
-            অ্যাকাউন্ট নেই?{" "}
-            <Link to="/signup" className="text-primary font-semibold hover:underline">সাইন আপ করুন</Link>
+            {t("login.no_account")}{" "}
+            <Link to="/signup" className="text-primary font-semibold hover:underline">{t("login.signup_link")}</Link>
           </p>
         </div>
       </div>

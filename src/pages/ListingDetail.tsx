@@ -11,17 +11,10 @@ import { supabase } from "@/integrations/supabase/client";
 import { useAuth } from "@/hooks/useAuth";
 import { toast } from "@/hooks/use-toast";
 import { motion } from "framer-motion";
-import { Facebook, Youtube, Instagram, Gamepad2, ShieldCheck, Wallet, ArrowLeft, AlertTriangle, MoreHorizontal, PackageX } from "lucide-react";
+import { Facebook, Youtube, Instagram, Gamepad2, ShieldCheck, Wallet, ArrowLeft, AlertTriangle, MoreHorizontal, PackageX, Twitter, Linkedin } from "lucide-react";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter } from "@/components/ui/dialog";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
-
-const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-  facebook_page: { icon: <Facebook className="w-6 h-6" />, label: "ফেসবুক পেজ", color: "#1877F2" },
-  youtube_channel: { icon: <Youtube className="w-6 h-6" />, label: "ইউটিউব চ্যানেল", color: "#FF0000" },
-  instagram: { icon: <Instagram className="w-6 h-6" />, label: "ইনস্টাগ্রাম", color: "#E4405F" },
-  gaming_id: { icon: <Gamepad2 className="w-6 h-6" />, label: "গেমিং আইডি", color: "#9146FF" },
-  other: { icon: <MoreHorizontal className="w-6 h-6" />, label: "অন্যান্য", color: "#6B7280" },
-};
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const paymentMethods = [
   { value: "bkash", label: "বিকাশ", number: "01XXXXXXXXX" },
@@ -35,6 +28,7 @@ const ListingDetail = () => {
   const { id } = useParams();
   const { user } = useAuth();
   const navigate = useNavigate();
+  const { t } = useLanguage();
   const [listing, setListing] = useState<any>(null);
   const [sellerProfile, setSellerProfile] = useState<any>(null);
   const [loading, setLoading] = useState(true);
@@ -43,6 +37,16 @@ const ListingDetail = () => {
   const [paymentRef, setPaymentRef] = useState("");
   const [ordering, setOrdering] = useState(false);
   const [restricted, setRestricted] = useState(false);
+
+  const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+    facebook_page: { icon: <Facebook className="w-6 h-6" />, label: t("cat.facebook_page"), color: "#1877F2" },
+    youtube_channel: { icon: <Youtube className="w-6 h-6" />, label: t("cat.youtube_channel"), color: "#FF0000" },
+    instagram: { icon: <Instagram className="w-6 h-6" />, label: t("cat.instagram"), color: "#E4405F" },
+    twitter: { icon: <Twitter className="w-6 h-6" />, label: t("cat.twitter"), color: "#1DA1F2" },
+    linkedin: { icon: <Linkedin className="w-6 h-6" />, label: t("cat.linkedin"), color: "#0A66C2" },
+    gaming_id: { icon: <Gamepad2 className="w-6 h-6" />, label: t("cat.gaming_id"), color: "#9146FF" },
+    other: { icon: <MoreHorizontal className="w-6 h-6" />, label: t("cat.other"), color: "#6B7280" },
+  };
 
   useEffect(() => {
     if (id) fetchListing();
@@ -116,8 +120,8 @@ const ListingDetail = () => {
       <div className="min-h-screen bg-background">
         <Navbar />
         <div className="pt-24 container mx-auto px-4 text-center">
-          <h1 className="text-2xl font-bold text-foreground mb-4">লিস্টিং পাওয়া যায়নি</h1>
-          <Link to="/marketplace"><Button>মার্কেটপ্লেসে ফিরে যান</Button></Link>
+          <h1 className="text-2xl font-bold text-foreground mb-4">{t("ld.not_found")}</h1>
+          <Link to="/marketplace"><Button>{t("ld.back")}</Button></Link>
         </div>
       </div>
     );
@@ -137,7 +141,7 @@ const ListingDetail = () => {
       <div className="pt-20 pb-10">
         <div className="container mx-auto px-4 max-w-4xl">
           <Link to="/marketplace" className="inline-flex items-center gap-2 text-sm text-muted-foreground hover:text-foreground mb-6">
-            <ArrowLeft className="w-4 h-4" /> মার্কেটপ্লেসে ফিরে যান
+            <ArrowLeft className="w-4 h-4" /> {t("ld.back")}
           </Link>
 
           <motion.div initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }} className="glass-card overflow-hidden">
@@ -153,12 +157,12 @@ const ListingDetail = () => {
                     <span className="text-xs font-semibold uppercase tracking-wider" style={{ color: meta.color }}>{meta.label}</span>
                     {listing.verified && (
                       <Badge variant="secondary" className="bg-success/10 text-success border-success/20 gap-1 text-xs">
-                        <ShieldCheck className="w-3 h-3" /> Verified
+                        <ShieldCheck className="w-3 h-3" /> {t("general.verified")}
                       </Badge>
                     )}
                     {isStockOut && (
                       <Badge variant="destructive" className="gap-1 text-xs">
-                        <PackageX className="w-3 h-3" /> স্টকআউট
+                        <PackageX className="w-3 h-3" /> {t("general.stockout")}
                       </Badge>
                     )}
                   </div>
@@ -170,10 +174,10 @@ const ListingDetail = () => {
               <div className="text-center p-4 rounded-xl bg-secondary/50 mb-6">
                 <Wallet className="w-5 h-5 mx-auto mb-2 text-primary" />
                 <p className="text-xl font-extrabold text-primary">৳{Number(listing.price).toLocaleString()}</p>
-                <p className="text-xs text-muted-foreground">মূল্য</p>
+                <p className="text-xs text-muted-foreground">{t("ld.price")}</p>
               </div>
 
-              {/* Seller info - hide when viewing own listing */}
+              {/* Seller info */}
               {sellerProfile && user?.id !== listing.seller_id && (
                 <Link to={`/profile/${listing.seller_id}`} className="flex items-center gap-3 p-3 rounded-xl bg-secondary/30 mb-6 hover:bg-secondary/50 transition-colors">
                   <Avatar className="w-10 h-10">
@@ -181,8 +185,8 @@ const ListingDetail = () => {
                     <AvatarFallback className="bg-primary/10 text-primary text-sm">{(sellerProfile.full_name || "?")[0]}</AvatarFallback>
                   </Avatar>
                   <div>
-                    <p className="text-sm font-semibold text-foreground">{sellerProfile.full_name || "বিক্রেতা"}</p>
-                    <p className="text-xs text-muted-foreground">বিক্রেতার প্রোফাইল দেখুন →</p>
+                    <p className="text-sm font-semibold text-foreground">{sellerProfile.full_name || t("ld.seller")}</p>
+                    <p className="text-xs text-muted-foreground">{t("ld.seller_profile")}</p>
                   </div>
                 </Link>
               )}
@@ -190,7 +194,7 @@ const ListingDetail = () => {
               {/* Description */}
               {listing.description && (
                 <div className="mb-6">
-                  <h3 className="font-bold text-foreground mb-2">বিবরণ</h3>
+                  <h3 className="font-bold text-foreground mb-2">{t("ld.description")}</h3>
                   <p className="text-sm text-muted-foreground leading-relaxed whitespace-pre-wrap">{listing.description}</p>
                 </div>
               )}
@@ -199,8 +203,8 @@ const ListingDetail = () => {
               <div className="flex items-start gap-3 p-4 rounded-xl bg-primary/5 border border-primary/20 mb-6">
                 <ShieldCheck className="w-5 h-5 text-primary shrink-0 mt-0.5" />
                 <div>
-                  <p className="text-sm font-semibold text-foreground">এসক্রো সুরক্ষা</p>
-                  <p className="text-xs text-muted-foreground">আপনার পেমেন্ট অ্যাডমিনের কাছে নিরাপদ থাকবে যতক্ষণ না আপনি ডেলিভারি কনফার্ম করেন।</p>
+                  <p className="text-sm font-semibold text-foreground">{t("ld.escrow_title")}</p>
+                  <p className="text-xs text-muted-foreground">{t("ld.escrow_desc")}</p>
                 </div>
               </div>
 
@@ -208,7 +212,7 @@ const ListingDetail = () => {
               {user?.id !== listing.seller_id ? (
                 isStockOut ? (
                   <Button size="lg" className="w-full h-14 font-bold text-lg" disabled>
-                    <PackageX className="w-5 h-5 mr-2" /> স্টকআউট
+                    <PackageX className="w-5 h-5 mr-2" /> {t("general.stockout")}
                   </Button>
                 ) : (
                   <Button
@@ -216,12 +220,12 @@ const ListingDetail = () => {
                     className="w-full gradient-primary text-primary-foreground border-0 font-bold text-lg h-14"
                     onClick={() => user ? setOrderDialog(true) : navigate("/login")}
                   >
-                    এখনই কিনুন — ৳{Number(listing.price).toLocaleString()}
+                    {t("ld.buy_now")} — ৳{Number(listing.price).toLocaleString()}
                   </Button>
                 )
               ) : (
                 <div className="text-center p-4 rounded-xl bg-secondary/50">
-                  <p className="text-sm text-muted-foreground">এটি আপনার নিজের লিস্টিং</p>
+                  <p className="text-sm text-muted-foreground">{t("ld.own_listing")}</p>
                 </div>
               )}
             </div>
@@ -233,18 +237,18 @@ const ListingDetail = () => {
       <Dialog open={orderDialog} onOpenChange={setOrderDialog}>
         <DialogContent className="sm:max-w-md">
           <DialogHeader>
-            <DialogTitle>পেমেন্ট করুন</DialogTitle>
+            <DialogTitle>{t("pay.title")}</DialogTitle>
             <DialogDescription>
-              নিচের যেকোনো মেথডে ৳{listing ? Number(listing.price).toLocaleString() : ""} পাঠান এবং ট্রানজেকশন আইডি দিন।
+              {listing ? `৳${Number(listing.price).toLocaleString()}` : ""}
             </DialogDescription>
           </DialogHeader>
 
           <div className="space-y-4">
             <div className="space-y-2">
-              <Label>পেমেন্ট মেথড নির্বাচন করুন</Label>
+              <Label>{t("pay.select_method")}</Label>
               <Select value={paymentMethod} onValueChange={setPaymentMethod}>
                 <SelectTrigger>
-                  <SelectValue placeholder="মেথড বেছে নিন" />
+                  <SelectValue placeholder={t("pay.select_placeholder")} />
                 </SelectTrigger>
                 <SelectContent>
                   {paymentMethods.map((m) => (
@@ -256,27 +260,27 @@ const ListingDetail = () => {
 
             {selectedPayment && (
               <div className="p-3 rounded-lg bg-secondary/50 text-center">
-                <p className="text-xs text-muted-foreground mb-1">এই নম্বরে/অ্যাড্রেসে পাঠান:</p>
+                <p className="text-xs text-muted-foreground mb-1">{t("pay.send_to")}</p>
                 <p className="text-sm font-bold text-foreground font-mono">{selectedPayment.number}</p>
-                <p className="text-xs text-muted-foreground mt-1">পরিমাণ: ৳{Number(listing.price).toLocaleString()}</p>
+                <p className="text-xs text-muted-foreground mt-1">{t("pay.amount")}: ৳{Number(listing.price).toLocaleString()}</p>
               </div>
             )}
 
             <div className="space-y-2">
-              <Label>ট্রানজেকশন আইডি / TxHash</Label>
-              <Input placeholder="যেমন: TxID123456789" value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} />
+              <Label>{t("pay.txid")}</Label>
+              <Input placeholder={t("pay.txid_placeholder")} value={paymentRef} onChange={(e) => setPaymentRef(e.target.value)} />
             </div>
 
             <div className="flex items-start gap-2 text-xs text-muted-foreground">
               <AlertTriangle className="w-4 h-4 shrink-0 mt-0.5 text-accent" />
-              <p>পেমেন্ট পাঠানোর পর অ্যাডমিন ভেরিফাই করবে। কনফার্ম হলে সেলার অ্যাকাউন্ট ট্রান্সফার করবে।</p>
+              <p>{t("pay.notice")}</p>
             </div>
           </div>
 
           <DialogFooter>
-            <Button variant="outline" onClick={() => setOrderDialog(false)}>বাতিল</Button>
+            <Button variant="outline" onClick={() => setOrderDialog(false)}>{t("pay.cancel")}</Button>
             <Button className="gradient-primary text-primary-foreground border-0" onClick={handleOrder} disabled={ordering}>
-              {ordering ? "সাবমিট হচ্ছে..." : "পেমেন্ট সাবমিট করুন"}
+              {ordering ? t("pay.submitting") : t("pay.submit")}
             </Button>
           </DialogFooter>
         </DialogContent>

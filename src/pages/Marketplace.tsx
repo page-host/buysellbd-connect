@@ -1,6 +1,6 @@
 import { useState, useEffect } from "react";
 import { Link } from "react-router-dom";
-import { Search, Facebook, Youtube, Instagram, Gamepad2, SlidersHorizontal, MoreHorizontal, PackageX } from "lucide-react";
+import { Search, Facebook, Youtube, Instagram, Gamepad2, SlidersHorizontal, MoreHorizontal, PackageX, Twitter, Linkedin } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -9,15 +9,8 @@ import { Footer } from "@/components/Footer";
 import { supabase } from "@/integrations/supabase/client";
 import { motion } from "framer-motion";
 import { Badge } from "@/components/ui/badge";
-import { ShieldCheck, Wallet } from "lucide-react";
-
-const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
-  facebook_page: { icon: <Facebook className="w-5 h-5" />, label: "ফেসবুক পেজ", color: "#1877F2" },
-  youtube_channel: { icon: <Youtube className="w-5 h-5" />, label: "ইউটিউব চ্যানেল", color: "#FF0000" },
-  instagram: { icon: <Instagram className="w-5 h-5" />, label: "ইনস্টাগ্রাম", color: "#E4405F" },
-  gaming_id: { icon: <Gamepad2 className="w-5 h-5" />, label: "গেমিং আইডি", color: "#9146FF" },
-  other: { icon: <MoreHorizontal className="w-5 h-5" />, label: "অন্যান্য", color: "#6B7280" },
-};
+import { ShieldCheck } from "lucide-react";
+import { useLanguage } from "@/contexts/LanguageContext";
 
 const fadeUp = {
   initial: { opacity: 0, y: 20 },
@@ -32,6 +25,17 @@ const Marketplace = () => {
   const [search, setSearch] = useState("");
   const [category, setCategory] = useState("all");
   const [sortBy, setSortBy] = useState("newest");
+  const { t } = useLanguage();
+
+  const categoryMeta: Record<string, { icon: React.ReactNode; label: string; color: string }> = {
+    facebook_page: { icon: <Facebook className="w-5 h-5" />, label: t("cat.facebook_page"), color: "#1877F2" },
+    youtube_channel: { icon: <Youtube className="w-5 h-5" />, label: t("cat.youtube_channel"), color: "#FF0000" },
+    instagram: { icon: <Instagram className="w-5 h-5" />, label: t("cat.instagram"), color: "#E4405F" },
+    twitter: { icon: <Twitter className="w-5 h-5" />, label: t("cat.twitter"), color: "#1DA1F2" },
+    linkedin: { icon: <Linkedin className="w-5 h-5" />, label: t("cat.linkedin"), color: "#0A66C2" },
+    gaming_id: { icon: <Gamepad2 className="w-5 h-5" />, label: t("cat.gaming_id"), color: "#9146FF" },
+    other: { icon: <MoreHorizontal className="w-5 h-5" />, label: t("cat.other"), color: "#6B7280" },
+  };
 
   useEffect(() => {
     fetchListings();
@@ -74,8 +78,8 @@ const Marketplace = () => {
         <div className="container mx-auto px-4">
           {/* Header */}
           <motion.div {...fadeUp} className="text-center mb-10">
-            <h1 className="text-3xl font-extrabold text-foreground mb-2">মার্কেটপ্লেস</h1>
-            <p className="text-muted-foreground">সেরা সোশ্যাল মিডিয়া অ্যাকাউন্ট খুঁজে নিন</p>
+            <h1 className="text-3xl font-extrabold text-foreground mb-2">{t("mp.title")}</h1>
+            <p className="text-muted-foreground">{t("mp.subtitle")}</p>
           </motion.div>
 
           {/* Search & Filters */}
@@ -84,7 +88,7 @@ const Marketplace = () => {
               <div className="relative flex-1">
                 <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
                 <Input
-                  placeholder="অ্যাকাউন্ট খুঁজুন..."
+                  placeholder={t("mp.search_placeholder")}
                   className="pl-10"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
@@ -93,25 +97,27 @@ const Marketplace = () => {
               <Select value={category} onValueChange={setCategory}>
                 <SelectTrigger className="w-full sm:w-48">
                   <SlidersHorizontal className="w-4 h-4 mr-2" />
-                  <SelectValue placeholder="ক্যাটাগরি" />
+                  <SelectValue placeholder={t("cl.category")} />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="all">সব ক্যাটাগরি</SelectItem>
-                  <SelectItem value="facebook_page">ফেসবুক পেজ</SelectItem>
-                  <SelectItem value="youtube_channel">ইউটিউব চ্যানেল</SelectItem>
-                  <SelectItem value="instagram">ইনস্টাগ্রাম</SelectItem>
-                  <SelectItem value="gaming_id">গেমিং আইডি</SelectItem>
-                  <SelectItem value="other">অন্যান্য</SelectItem>
+                  <SelectItem value="all">{t("cat.all")}</SelectItem>
+                  <SelectItem value="facebook_page">{t("cat.facebook_page")}</SelectItem>
+                  <SelectItem value="instagram">{t("cat.instagram")}</SelectItem>
+                  <SelectItem value="youtube_channel">{t("cat.youtube_channel")}</SelectItem>
+                  <SelectItem value="twitter">{t("cat.twitter")}</SelectItem>
+                  <SelectItem value="linkedin">{t("cat.linkedin")}</SelectItem>
+                  <SelectItem value="gaming_id">{t("cat.gaming_id")}</SelectItem>
+                  <SelectItem value="other">{t("cat.other")}</SelectItem>
                 </SelectContent>
               </Select>
               <Select value={sortBy} onValueChange={setSortBy}>
                 <SelectTrigger className="w-full sm:w-48">
-                  <SelectValue placeholder="সর্ট করুন" />
+                  <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="newest">নতুন আগে</SelectItem>
-                  <SelectItem value="price_low">কম দাম আগে</SelectItem>
-                  <SelectItem value="price_high">বেশি দাম আগে</SelectItem>
+                  <SelectItem value="newest">{t("mp.sort_newest")}</SelectItem>
+                  <SelectItem value="price_low">{t("mp.sort_price_low")}</SelectItem>
+                  <SelectItem value="price_high">{t("mp.sort_price_high")}</SelectItem>
                 </SelectContent>
               </Select>
             </div>
@@ -130,10 +136,10 @@ const Marketplace = () => {
             </div>
           ) : filtered.length === 0 ? (
             <div className="text-center py-20">
-              <p className="text-muted-foreground text-lg mb-4">কোনো লিস্টিং পাওয়া যায়নি</p>
+              <p className="text-muted-foreground text-lg mb-4">{t("mp.no_listings")}</p>
               <Link to="/create-listing">
                 <Button className="gradient-primary text-primary-foreground border-0">
-                  নতুন লিস্টিং তৈরি করুন
+                  {t("mp.create_new")}
                 </Button>
               </Link>
             </div>
@@ -161,12 +167,12 @@ const Marketplace = () => {
                             <div className="flex items-center gap-1">
                               {listing.status === 'sold' && (
                                 <Badge variant="destructive" className="gap-1 text-xs">
-                                  <PackageX className="w-3 h-3" /> স্টকআউট
+                                  <PackageX className="w-3 h-3" /> {t("mp.stockout")}
                                 </Badge>
                               )}
                               {listing.verified && (
                                 <Badge variant="secondary" className="bg-success/10 text-success border-success/20 gap-1 text-xs">
-                                  <ShieldCheck className="w-3 h-3" /> Verified
+                                  <ShieldCheck className="w-3 h-3" /> {t("general.verified")}
                                 </Badge>
                               )}
                             </div>
@@ -176,16 +182,16 @@ const Marketplace = () => {
                           )}
                           <div className="flex items-center justify-between">
                             <div>
-                              <p className="text-xs text-muted-foreground">মূল্য</p>
+                              <p className="text-xs text-muted-foreground">{t("mp.price")}</p>
                               <p className="text-lg font-extrabold text-primary">৳{Number(listing.price).toLocaleString()}</p>
                             </div>
                             {listing.status === 'sold' ? (
                               <Button size="sm" variant="outline" disabled className="text-muted-foreground">
-                                স্টকআউট
+                                {t("mp.stockout")}
                               </Button>
                             ) : (
                               <Button size="sm" className="gradient-primary text-primary-foreground border-0">
-                                বিস্তারিত
+                                {t("mp.details")}
                               </Button>
                             )}
                           </div>

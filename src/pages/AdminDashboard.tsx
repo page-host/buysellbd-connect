@@ -398,16 +398,20 @@ export default function AdminDashboard() {
                                 </Button>
                               </TableCell>
                               <TableCell>
-                                <Select value={listing.status} onValueChange={(v) => updateListingStatus(listing.id, v)}>
-                                  <SelectTrigger className="w-[130px] h-8 text-xs">
-                                    <SelectValue />
-                                  </SelectTrigger>
-                                  <SelectContent>
-                                    {["active","pending","sold","removed"].map(s => (
-                                      <SelectItem key={s} value={s}>{statusLabels[s] || s}</SelectItem>
-                                    ))}
-                                  </SelectContent>
-                                </Select>
+                                <div className="flex items-center gap-2">
+                                  <Badge variant="outline" className={`text-xs ${statusColors[listing.status] || ""}`}>
+                                    {statusLabels[listing.status] || listing.status}
+                                  </Badge>
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    className="text-xs h-7 gap-1 text-destructive border-destructive/30 hover:bg-destructive/10"
+                                    onClick={() => updateListingStatus(listing.id, "removed")}
+                                    disabled={listing.status === "removed"}
+                                  >
+                                    <Trash2 className="w-3 h-3" /> ডিলিট
+                                  </Button>
+                                </div>
                               </TableCell>
                             </TableRow>
                           ))}
