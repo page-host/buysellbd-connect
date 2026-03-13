@@ -654,9 +654,16 @@ export default function AdminDashboard() {
                                       <div className={`max-w-[80%] rounded-xl px-3 py-2 text-sm ${isUser ? "bg-secondary text-foreground" : "bg-primary/10 text-foreground"}`}>
                                         <p className="whitespace-pre-wrap break-words">{msg.message}</p>
                                       </div>
-                                      <span className="text-[9px] text-muted-foreground mt-0.5">
-                                        {new Date(msg.created_at).toLocaleTimeString(lang === "bn" ? "bn-BD" : "en-US", { hour: "2-digit", minute: "2-digit" })}
-                                      </span>
+                                      <div className="flex items-center gap-1 mt-0.5">
+                                        <span className="text-[9px] text-muted-foreground">
+                                          {new Date(msg.created_at).toLocaleTimeString(lang === "bn" ? "bn-BD" : "en-US", { hour: "2-digit", minute: "2-digit" })}
+                                        </span>
+                                        {!isUser && (
+                                          <span className={`text-[9px] ${msg.is_read ? "text-green-400" : "text-muted-foreground/60"}`}>
+                                            {msg.is_read ? "✓✓ Seen" : "✓ Sent"}
+                                          </span>
+                                        )}
+                                      </div>
                                     </div>
                                   );
                                 })}
@@ -681,7 +688,7 @@ export default function AdminDashboard() {
                                       const { data } = await (supabase as any).from("support_messages").select("*").eq("user_id", chat.userId).order("created_at", { ascending: true });
                                       setSupportChats((prev: any[]) => prev.map(c => c.userId === chat.userId ? { ...c, messages: data || c.messages, unread: 0 } : c));
                                       // Mark as read
-                                      await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("is_read", false);
+                                      await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("sender_id", chat.userId).eq("is_read", false);
                                     }
                                   }}
                                 />
@@ -696,7 +703,7 @@ export default function AdminDashboard() {
                                   input.value = "";
                                   const { data } = await (supabase as any).from("support_messages").select("*").eq("user_id", chat.userId).order("created_at", { ascending: true });
                                   setSupportChats((prev: any[]) => prev.map(c => c.userId === chat.userId ? { ...c, messages: data || c.messages, unread: 0 } : c));
-                                  await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("is_read", false);
+                                  await (supabase as any).from("support_messages").update({ is_read: true }).eq("user_id", chat.userId).eq("sender_id", chat.userId).eq("is_read", false);
                                 }}>
                                   {t("admin.send_btn")}
                                 </Button>

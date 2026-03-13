@@ -57,10 +57,12 @@ export function SupportChat() {
 
   const quickMessages = [t("support.quick1"), t("support.quick2"), t("support.quick3"), t("support.quick4")];
 
-  const computeUnread = useCallback((msgs: SupportMessage[]) => {
-    if (!user) return 0;
-    return msgs.filter(m => !m.is_read && m.sender_id !== user.id).length;
-  }, [user]);
+  // Reactively compute unread count whenever messages change
+  useEffect(() => {
+    if (!user) { setUnreadCount(0); return; }
+    const count = messages.filter(m => !m.is_read && m.sender_id !== user.id).length;
+    setUnreadCount(count);
+  }, [messages, user]);
 
   const fetchMessages = useCallback(async () => {
     if (!user) return;
@@ -71,10 +73,9 @@ export function SupportChat() {
       .order("created_at", { ascending: true });
     if (data) {
       setMessages(data);
-      setUnreadCount(computeUnread(data));
     }
     setLoading(false);
-  }, [user, computeUnread]);
+  }, [user]);
 
   useEffect(() => {
     if (!user) return;
@@ -85,27 +86,20 @@ export function SupportChat() {
       .channel(`support-${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${user.id}` }, (payload: any) => {
         const newMsg = payload.new as SupportMessage;
-        // Skip own messages — handled optimistically
         if (newMsg.sender_id === user.id) return;
         setMessages(prev => {
           if (prev.some(m => m.id === newMsg.id)) return prev;
-          const updated = [...prev, newMsg];
-          setUnreadCount(computeUnread(updated));
-          return updated;
+          return [...prev, newMsg];
         });
       })
       .on("postgres_changes", { event: "UPDATE", schema: "public", table: "support_messages", filter: `user_id=eq.${user.id}` }, (payload: any) => {
         const updated = payload.new as SupportMessage;
-        setMessages(prev => {
-          const newMsgs = prev.map(m => m.id === updated.id ? updated : m);
-          setUnreadCount(computeUnread(newMsgs));
-          return newMsgs;
-        });
+        setMessages(prev => prev.map(m => m.id === updated.id ? updated : m));
       })
       .subscribe();
 
     return () => { supabase.removeChannel(channel); };
-  }, [user, fetchMessages, computeUnread]);
+  }, [user, fetchMessages]);
 
   useEffect(() => {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
