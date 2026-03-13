@@ -6,7 +6,7 @@ import { Input } from "@/components/ui/input";
 import { Textarea } from "@/components/ui/textarea";
 import { Badge } from "@/components/ui/badge";
 import { toast } from "@/hooks/use-toast";
-import { Send, Key, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, MessageSquareText, X, Check, CheckCheck, Lock, Flag } from "lucide-react";
+import { Send, Key, Loader2, ShieldCheck, CheckCircle2, AlertTriangle, MessageSquareText, X, Check, CheckCheck, Lock, Flag, Paperclip, FileText, Image as ImageIcon, Download } from "lucide-react";
 import {
   Dialog,
   DialogContent,
@@ -34,18 +34,58 @@ interface Message {
   created_at: string;
 }
 
+// Attachment format: [ATTACHMENT:url|filename]
+const ATTACHMENT_REGEX = /\[ATTACHMENT:(.*?)\|(.*?)\]/;
+
+function parseAttachment(message: string): { url: string; name: string } | null {
+  const match = message.match(ATTACHMENT_REGEX);
+  if (!match) return null;
+  return { url: match[1], name: match[2] };
+}
+
+function isImageFile(name: string): boolean {
+  return /\.(jpg|jpeg|png|gif|webp|bmp|svg)$/i.test(name);
+}
+
+function getFileIcon(name: string) {
+  if (isImageFile(name)) return <ImageIcon className="w-4 h-4" />;
+  return <FileText className="w-4 h-4" />;
+}
+
+function AttachmentPreview({ url, name }: { url: string; name: string }) {
+  if (isImageFile(name)) {
+    return (
+      <div className="space-y-1.5">
+        <img src={url} alt={name} className="max-w-[240px] max-h-[200px] rounded-lg object-cover border border-border" />
+        <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-1 text-[10px] text-primary hover:underline">
+          <Download className="w-3 h-3" /> {name}
+        </a>
+      </div>
+    );
+  }
+  return (
+    <a href={url} target="_blank" rel="noopener noreferrer" className="flex items-center gap-2 p-2.5 rounded-lg bg-muted/50 border border-border hover:bg-muted transition-colors">
+      {getFileIcon(name)}
+      <span className="text-xs font-medium text-foreground truncate max-w-[180px]">{name}</span>
+      <Download className="w-3.5 h-3.5 text-muted-foreground ml-auto shrink-0" />
+    </a>
+  );
+}
+
 export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComplete, isAdminView = false }: OrderChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
   const [isCredential, setIsCredential] = useState(false);
   const [sending, setSending] = useState(false);
+  const [uploading, setUploading] = useState(false);
   const [loading, setLoading] = useState(true);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
   const [reportSending, setReportSending] = useState(false);
   const [chatOpen, setChatOpen] = useState(false);
   const scrollRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const isBuyer = user?.id === buyerId;
   const isSeller = user?.id === sellerId;
@@ -85,20 +125,31 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     }
   }, [messages]);
 
+  // Mark messages as read when chat is open and new unread messages exist
+  const markAsReadRef = useRef(false);
   useEffect(() => {
     if (!chatOpen || !user || isAdminView) return;
     const unread = messages.filter(m => m.sender_id !== user.id && !m.is_read);
-    if (unread.length > 0) {
-      Promise.all(
-        unread.map(m => (supabase as any).from("order_messages").update({ is_read: true }).eq("id", m.id))
-      ).then(() => {
-        setMessages(prev => prev.map(m => m.sender_id !== user.id ? { ...m, is_read: true } : m));
-      });
-    }
-  }, [chatOpen, messages, user, isAdminView]);
+    if (unread.length === 0) return;
+    if (markAsReadRef.current) return;
+    markAsReadRef.current = true;
+    
+    const markRead = async () => {
+      try {
+        await Promise.all(
+          unread.map(m => (supabase as any).from("order_messages").update({ is_read: true }).eq("id", m.id))
+        );
+        await fetchMessages();
+      } finally {
+        markAsReadRef.current = false;
+      }
+    };
+    markRead();
+  }, [chatOpen, messages, user, isAdminView, fetchMessages]);
 
-  const sendMessage = async () => {
-    if (!newMessage.trim() || !user) return;
+  const sendMessage = async (customMsg?: string) => {
+    const text = (customMsg || newMessage).trim();
+    if (!text || !user) return;
     setSending(true);
     if (isCredential && isSeller) {
       await supabase.from("orders").update({ status: "delivering" as any }).eq("id", orderId);
@@ -106,16 +157,67 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     const { error } = await (supabase as any).from("order_messages").insert({
       order_id: orderId,
       sender_id: user.id,
-      message: newMessage.trim(),
+      message: text,
       is_credentials: isCredential,
     });
     setSending(false);
     if (error) {
       toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
     } else {
-      setNewMessage("");
+      if (!customMsg) setNewMessage("");
       setIsCredential(false);
     }
+  };
+
+  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file || !user) return;
+
+    const maxSize = 20 * 1024 * 1024; // 20MB
+    if (file.size > maxSize) {
+      toast({ title: "ত্রুটি", description: "ফাইল সাইজ ২০MB এর বেশি হতে পারবে না।", variant: "destructive" });
+      return;
+    }
+
+    const allowedTypes = [
+      "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
+      "application/pdf",
+      "application/msword", "application/vnd.openxmlformats-officedocument.wordprocessingml.document",
+      "application/vnd.ms-excel", "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+      "text/plain", "text/csv",
+    ];
+
+    if (!allowedTypes.includes(file.type)) {
+      toast({ title: "ত্রুটি", description: "এই ধরনের ফাইল সাপোর্ট করে না। ইমেজ, PDF, Doc, Excel পাঠান।", variant: "destructive" });
+      return;
+    }
+
+    setUploading(true);
+    const ext = file.name.split(".").pop();
+    const filePath = `${orderId}/${user.id}/${Date.now()}.${ext}`;
+    
+    const { error: uploadError } = await supabase.storage
+      .from("order-attachments")
+      .upload(filePath, file);
+
+    if (uploadError) {
+      setUploading(false);
+      toast({ title: "আপলোড ব্যর্থ", description: uploadError.message, variant: "destructive" });
+      return;
+    }
+
+    const { data: urlData } = supabase.storage.from("order-attachments").getPublicUrl(filePath);
+    
+    // For private buckets, use createSignedUrl
+    const { data: signedData } = await supabase.storage.from("order-attachments").createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year
+    const fileUrl = signedData?.signedUrl || urlData.publicUrl;
+    
+    // Send as attachment message
+    await sendMessage(`[ATTACHMENT:${fileUrl}|${file.name}]`);
+    setUploading(false);
+    
+    // Reset file input
+    if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
   const confirmOrder = async () => {
@@ -135,7 +237,6 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
         _type: "order",
         _reference_id: orderData.id,
       });
-      // Update English columns
       const { data: notifData } = await supabase.from("notifications").select("id").eq("user_id", orderData.seller_id).eq("type", "order").order("created_at", { ascending: false }).limit(1);
       if (notifData?.[0]) {
         await (supabase as any).from("notifications").update({
@@ -190,7 +291,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
 
   const canChat = ["payment_confirmed", "delivering", "delivered", "disputed"].includes(orderStatus);
 
-  // Collapsed view — improved icon and style
+  // Collapsed view
   if (!chatOpen && !isAdminView) {
     return (
       <div className="flex items-center gap-3">
@@ -299,6 +400,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
           messages.map((msg) => {
             const isMe = msg.sender_id === user?.id;
             const isBuyerMsg = msg.sender_id === buyerId;
+            const attachment = parseAttachment(msg.message);
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                 <div className="flex items-center gap-1.5 mb-0.5">
@@ -323,9 +425,13 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
                       <Lock className="w-3 h-3" /> অ্যাকাউন্ট ক্রেডেনশিয়াল
                     </div>
                   )}
-                  <p className={`whitespace-pre-wrap break-words ${msg.is_credentials ? "font-mono text-xs" : ""}`}>
-                    {msg.message}
-                  </p>
+                  {attachment ? (
+                    <AttachmentPreview url={attachment.url} name={attachment.name} />
+                  ) : (
+                    <p className={`whitespace-pre-wrap break-words ${msg.is_credentials ? "font-mono text-xs" : ""}`}>
+                      {msg.message}
+                    </p>
+                  )}
                 </div>
                 {!isAdminView && getMessageStatus(msg)}
               </div>
@@ -376,15 +482,38 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
               onKeyDown={(e) => e.key === "Enter" && !e.shiftKey && sendMessage()}
               className="text-sm rounded-full bg-secondary/50 border-0 focus-visible:ring-primary/30"
             />
+            {/* File attachment button */}
+            <input
+              ref={fileInputRef}
+              type="file"
+              className="hidden"
+              accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
+              onChange={handleFileUpload}
+            />
+            <Button
+              size="icon"
+              variant="outline"
+              className="shrink-0 rounded-full h-10 w-10 border-border hover:bg-muted"
+              onClick={() => fileInputRef.current?.click()}
+              disabled={uploading}
+              title="ফাইল পাঠান"
+            >
+              {uploading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Paperclip className="w-4 h-4" />}
+            </Button>
             <Button
               size="icon"
               className="gradient-primary text-primary-foreground border-0 shrink-0 rounded-full shadow-md h-10 w-10"
-              onClick={sendMessage}
+              onClick={() => sendMessage()}
               disabled={sending || !newMessage.trim()}
             >
               {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
           </div>
+          {uploading && (
+            <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
+              <Loader2 className="w-3 h-3 animate-spin" /> ফাইল আপলোড হচ্ছে...
+            </p>
+          )}
         </div>
       ) : isCompleted ? (
         <div className="border-t border-border p-3 text-center bg-emerald-500/5">

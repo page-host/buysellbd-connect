@@ -45,7 +45,7 @@ const Marketplace = () => {
     setLoading(true);
     let query = supabase
       .from("listings")
-      .select("*")
+      .select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at")
       .in("status", ["active", "sold"]);
 
     if (category !== "all") {

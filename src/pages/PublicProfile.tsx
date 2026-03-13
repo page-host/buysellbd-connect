@@ -27,7 +27,7 @@ export default function PublicProfile() {
       supabase.from("profiles").select("*").eq("user_id", userId).maybeSingle(),
       supabase.from("orders").select("id, status, seller_id, buyer_id")
         .or(`buyer_id.eq.${userId},seller_id.eq.${userId}`),
-      supabase.from("listings").select("*").eq("seller_id", userId!).eq("status", "active").order("created_at", { ascending: false }),
+      supabase.from("listings").select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at").eq("seller_id", userId!).eq("status", "active").order("created_at", { ascending: false }),
     ]);
     setProfile(profRes.data);
     setListings(listingsRes.data || []);

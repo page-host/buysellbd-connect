@@ -92,7 +92,7 @@ export default function UserDashboard() {
           .select("*")
           .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
           .order("created_at", { ascending: false }),
-        supabase.from("listings").select("*").eq("seller_id", user.id).order("created_at", { ascending: false }),
+        supabase.from("listings").select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at").eq("seller_id", user.id).order("created_at", { ascending: false }),
       ]);
       if (profRes.data) {
         setProfile(profRes.data);

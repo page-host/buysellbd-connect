@@ -13,9 +13,10 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban, Headphones } from "lucide-react";
+import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban, Headphones, Download, FileSpreadsheet, FileText } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { OrderChat } from "@/components/OrderChat";
+import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
 
 type Order = Tables<"orders">;
 type Listing = Tables<"listings">;
@@ -247,6 +248,25 @@ export default function AdminDashboard() {
 
   const getUserRole = (userId: string) => roles.find(r => r.user_id === userId)?.role || "buyer";
 
+  const orderColumns = [
+    { header: "Date", key: "created_at", transform: (v: any) => new Date(v).toLocaleDateString() },
+    { header: "Buyer", key: "buyer_id", transform: (v: any) => getProfileName(v) },
+    { header: "Seller", key: "seller_id", transform: (v: any) => getProfileName(v) },
+    { header: "Amount", key: "amount", transform: (v: any) => `৳${Number(v).toLocaleString()}` },
+    { header: "Payment Method", key: "payment_method" },
+    { header: "Reference", key: "payment_reference", transform: (v: any) => v || "—" },
+    { header: "Status", key: "status" },
+    { header: "Notes", key: "admin_notes", transform: (v: any) => v || "" },
+  ];
+
+  const userColumns = [
+    { header: "Name", key: "full_name", transform: (v: any) => v || "—" },
+    { header: "Phone", key: "phone", transform: (v: any) => v || "—" },
+    { header: "Joined", key: "created_at", transform: (v: any) => new Date(v).toLocaleDateString() },
+    { header: "Role", key: "user_id", transform: (v: any) => getUserRole(v) },
+    { header: "Restricted", key: "is_restricted", transform: (v: any) => v ? "Yes" : "No" },
+  ];
+
   if (authLoading || checking) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -314,7 +334,17 @@ export default function AdminDashboard() {
             {/* ORDERS TAB */}
             <TabsContent value="orders">
               <Card className="bg-card border-border">
-                <CardHeader><CardTitle>{t("admin.all_orders")}</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>{t("admin.all_orders")}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => exportToExcel(orders, orderColumns, "orders-export")}>
+                      <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => exportToPDF(orders, orderColumns, "All Orders", "orders-export")}>
+                      <FileText className="w-3.5 h-3.5" /> PDF
+                    </Button>
+                  </div>
+                </CardHeader>
                 <CardContent>
                   {orders.length === 0 ? <p className="text-muted-foreground text-center py-8">{t("admin.no_orders")}</p> : (
                     <div className="overflow-x-auto">
@@ -472,7 +502,17 @@ export default function AdminDashboard() {
             {/* USERS TAB */}
             <TabsContent value="users">
               <Card className="bg-card border-border">
-                <CardHeader><CardTitle>{t("admin.all_users")}</CardTitle></CardHeader>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <CardTitle>{t("admin.all_users")}</CardTitle>
+                  <div className="flex items-center gap-2">
+                    <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => exportToExcel(profiles, userColumns, "users-export")}>
+                      <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+                    </Button>
+                    <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => exportToPDF(profiles, userColumns, "All Users", "users-export")}>
+                      <FileText className="w-3.5 h-3.5" /> PDF
+                    </Button>
+                  </div>
+                </CardHeader>
                 <CardContent>
                   {profiles.length === 0 ? <p className="text-muted-foreground text-center py-8">{t("admin.no_users")}</p> : (
                     <div className="overflow-x-auto">

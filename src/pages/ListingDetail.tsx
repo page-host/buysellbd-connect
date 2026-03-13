@@ -61,7 +61,7 @@ const ListingDetail = () => {
   }, [user]);
 
   const fetchListing = async () => {
-    const { data } = await supabase.from("listings").select("*").eq("id", id).single();
+    const { data } = await supabase.from("listings").select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at").eq("id", id).single();
     setListing(data);
     if (data) {
       const { data: profile } = await supabase.from("profiles").select("*").eq("user_id", data.seller_id).maybeSingle();
