@@ -118,6 +118,42 @@ export default function AdminDashboard() {
       setLoadingData(false);
     };
     load();
+
+    // Realtime for support messages
+    const supportChannel = supabase
+      .channel("admin-support-realtime")
+      .on("postgres_changes", { event: "*", schema: "public", table: "support_messages" }, (payload: any) => {
+        const msg = payload.new as any;
+        if (!msg) return;
+        setSupportChats((prev: any[]) => {
+          const existing = prev.find(c => c.userId === msg.user_id);
+          if (payload.eventType === "INSERT") {
+            if (existing) {
+              const alreadyExists = existing.messages.some((m: any) => m.id === msg.id);
+              if (alreadyExists) return prev;
+              return prev.map(c => c.userId === msg.user_id ? {
+                ...c,
+                messages: [...c.messages, msg],
+                unread: c.unread + (msg.sender_id === msg.user_id ? 1 : 0),
+                lastMessage: msg,
+              } : c);
+            } else {
+              return [...prev, { userId: msg.user_id, messages: [msg], unread: msg.sender_id === msg.user_id ? 1 : 0, lastMessage: msg }];
+            }
+          }
+          if (payload.eventType === "UPDATE" && existing) {
+            return prev.map(c => c.userId === msg.user_id ? {
+              ...c,
+              messages: c.messages.map((m: any) => m.id === msg.id ? msg : m),
+              unread: c.messages.map((m: any) => m.id === msg.id ? msg : m).filter((m: any) => !m.is_read && m.sender_id === m.user_id).length,
+            } : c);
+          }
+          return prev;
+        });
+      })
+      .subscribe();
+
+    return () => { supabase.removeChannel(supportChannel); };
   }, [isAdmin]);
 
   const updateOrderStatus = async (id: string, status: string) => {
@@ -182,6 +218,14 @@ export default function AdminDashboard() {
         _type: "restriction",
         _reference_id: userId,
       });
+      // Update English columns
+      const { data: notifData } = await supabase.from("notifications").select("id").eq("user_id", userId).eq("type", "restriction").order("created_at", { ascending: false }).limit(1);
+      if (notifData?.[0]) {
+        await (supabase as any).from("notifications").update({
+          title_en: newVal ? "🚫 Account Restricted" : "✅ Restriction Removed",
+          message_en: newVal ? `Your account has been restricted. Reason: ${reason || "Policy violation"}` : "Your account restriction has been removed. You can now buy and sell.",
+        }).eq("id", notifData[0].id);
+      }
       
       toast({ title: newVal ? "🚫 ইউজার সীমাবদ্ধ করা হয়েছে" : "✅ সীমাবদ্ধতা সরানো হয়েছে" });
     }

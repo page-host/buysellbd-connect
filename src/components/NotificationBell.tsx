@@ -14,6 +14,8 @@ interface Notification {
   user_id: string;
   title: string;
   message: string;
+  title_en: string | null;
+  message_en: string | null;
   type: "order" | "restriction" | "info" | "warning";
   reference_id: string | null;
   is_read: boolean;
@@ -40,7 +42,7 @@ function timeAgo(dateStr: string, t: (key: string) => string) {
 
 export function NotificationBell() {
   const { user } = useAuth();
-  const { t } = useLanguage();
+  const { t, lang } = useLanguage();
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
   const [open, setOpen] = useState(false);
@@ -141,8 +143,8 @@ export function NotificationBell() {
                         </Badge>
                         {!n.is_read && <span className="w-2 h-2 rounded-full bg-primary flex-shrink-0" />}
                       </div>
-                      <p className="text-sm font-medium text-foreground truncate">{n.title}</p>
-                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{n.message}</p>
+                      <p className="text-sm font-medium text-foreground truncate">{lang === "en" && n.title_en ? n.title_en : n.title}</p>
+                      <p className="text-xs text-muted-foreground line-clamp-2 mt-0.5">{lang === "en" && n.message_en ? n.message_en : n.message}</p>
                       <p className="text-[10px] text-muted-foreground/60 mt-1">{timeAgo(n.created_at, t)}</p>
                     </div>
                   </div>

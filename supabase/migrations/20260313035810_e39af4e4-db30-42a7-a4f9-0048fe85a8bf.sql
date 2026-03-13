@@ -1,0 +1,1 @@
+ALTER TABLE public.support_messages REPLICA IDENTITY FULL;

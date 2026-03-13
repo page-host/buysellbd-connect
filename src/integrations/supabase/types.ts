@@ -107,8 +107,10 @@ export type Database = {
           id: string
           is_read: boolean
           message: string
+          message_en: string | null
           reference_id: string | null
           title: string
+          title_en: string | null
           type: string
           user_id: string
         }
@@ -117,8 +119,10 @@ export type Database = {
           id?: string
           is_read?: boolean
           message: string
+          message_en?: string | null
           reference_id?: string | null
           title: string
+          title_en?: string | null
           type?: string
           user_id: string
         }
@@ -127,8 +131,10 @@ export type Database = {
           id?: string
           is_read?: boolean
           message?: string
+          message_en?: string | null
           reference_id?: string | null
           title?: string
+          title_en?: string | null
           type?: string
           user_id?: string
         }
@@ -378,6 +384,8 @@ export type Database = {
         | "instagram"
         | "gaming_id"
         | "other"
+        | "linkedin"
+        | "twitter"
       listing_status: "active" | "sold" | "pending" | "removed"
       order_status:
         | "pending"
@@ -524,6 +532,8 @@ export const Constants = {
         "instagram",
         "gaming_id",
         "other",
+        "linkedin",
+        "twitter",
       ],
       listing_status: ["active", "sold", "pending", "removed"],
       order_status: [

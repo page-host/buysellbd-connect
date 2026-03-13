@@ -135,6 +135,14 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
         _type: "order",
         _reference_id: orderData.id,
       });
+      // Update English columns
+      const { data: notifData } = await supabase.from("notifications").select("id").eq("user_id", orderData.seller_id).eq("type", "order").order("created_at", { ascending: false }).limit(1);
+      if (notifData?.[0]) {
+        await (supabase as any).from("notifications").update({
+          title_en: "✅ Order Completed",
+          message_en: `Order #${orderData.id.slice(0, 8).toUpperCase()} has been completed. Buyer confirmed credentials.`,
+        }).eq("id", notifData[0].id);
+      }
     }
     const { error } = await supabase
       .from("orders")

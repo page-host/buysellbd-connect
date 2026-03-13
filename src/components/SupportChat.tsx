@@ -85,6 +85,8 @@ export function SupportChat() {
       .channel(`support-${user.id}`)
       .on("postgres_changes", { event: "INSERT", schema: "public", table: "support_messages", filter: `user_id=eq.${user.id}` }, (payload: any) => {
         const newMsg = payload.new as SupportMessage;
+        // Skip own messages — handled optimistically
+        if (newMsg.sender_id === user.id) return;
         setMessages(prev => {
           if (prev.some(m => m.id === newMsg.id)) return prev;
           const updated = [...prev, newMsg];
