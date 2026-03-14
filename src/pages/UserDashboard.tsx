@@ -92,13 +92,19 @@ export default function UserDashboard() {
 
     const load = async () => {
       setLoadingData(true);
+      
+      // Check admin status
+      const { data: adminData } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const userIsAdmin = !!adminData;
+      setIsAdmin(userIsAdmin);
+
       const [profRes, ordersRes, listingsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("orders")
+        userIsAdmin ? Promise.resolve({ data: [] }) : supabase.from("orders")
           .select("*")
           .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
           .order("created_at", { ascending: false }),
-        supabase.from("listings").select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at").eq("seller_id", user.id).order("created_at", { ascending: false }),
+        userIsAdmin ? Promise.resolve({ data: [] }) : supabase.from("listings").select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at").eq("seller_id", user.id).order("created_at", { ascending: false }),
       ]);
       if (profRes.data) {
         setProfile(profRes.data);
