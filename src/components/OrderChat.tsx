@@ -309,7 +309,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const getSenderLabel = (senderId: string) => {
     if (senderId === buyerId) return "ক্রেতা";
     if (senderId === sellerId) return "বিক্রেতা";
-    return "সিস্টেম";
+    return "অ্যাডমিন";
   };
 
   const getMessageStatus = (msg: Message) => {
