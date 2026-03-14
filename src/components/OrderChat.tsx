@@ -120,10 +120,20 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     return () => { supabase.removeChannel(channel); };
   }, [orderId, fetchMessages]);
 
+  const prevMessageCountRef = useRef(0);
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current && messages.length !== prevMessageCountRef.current) {
+      const isNewMessage = messages.length > prevMessageCountRef.current;
+      if (isNewMessage) {
+        // Only auto-scroll if user is near bottom or it's a brand new message
+        const el = scrollRef.current;
+        const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+        if (isNearBottom || prevMessageCountRef.current === 0) {
+          el.scrollTop = el.scrollHeight;
+        }
+      }
     }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   // Mark messages as read when chat is open and new unread messages exist
