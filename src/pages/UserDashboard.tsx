@@ -66,6 +66,7 @@ export default function UserDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [myListings, setMyListings] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Profile form
   const [fullName, setFullName] = useState("");
@@ -91,13 +92,19 @@ export default function UserDashboard() {
 
     const load = async () => {
       setLoadingData(true);
+      
+      // Check admin status
+      const { data: adminData } = await supabase.rpc("has_role", { _user_id: user.id, _role: "admin" });
+      const userIsAdmin = !!adminData;
+      setIsAdmin(userIsAdmin);
+
       const [profRes, ordersRes, listingsRes] = await Promise.all([
         supabase.from("profiles").select("*").eq("user_id", user.id).maybeSingle(),
-        supabase.from("orders")
+        userIsAdmin ? Promise.resolve({ data: [] }) : supabase.from("orders")
           .select("*")
           .or(`buyer_id.eq.${user.id},seller_id.eq.${user.id}`)
           .order("created_at", { ascending: false }),
-        supabase.from("listings").select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at").eq("seller_id", user.id).order("created_at", { ascending: false }),
+        userIsAdmin ? Promise.resolve({ data: [] }) : supabase.from("listings").select("id, title, description, category, custom_category, price, currency, seller_id, status, verified, images, followers_count, account_age, platform_url, created_at, updated_at").eq("seller_id", user.id).order("created_at", { ascending: false }),
       ]);
       if (profRes.data) {
         setProfile(profRes.data);
@@ -241,7 +248,8 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - hide for admin */}
+        {!isAdmin && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
             { label: t("dash.total_spent"), value: `৳${totalSpent.toLocaleString()}`, icon: Wallet, color: "text-red-400", bg: "bg-red-500/10" },
@@ -262,13 +270,14 @@ export default function UserDashboard() {
             </Card>
           ))}
         </div>
+        )}
 
         <Tabs defaultValue="profile">
           <TabsList className="mb-6 bg-muted flex-wrap">
             <TabsTrigger value="profile" className="gap-2"><User className="w-4 h-4" />{t("dash.profile_tab")}</TabsTrigger>
             <TabsTrigger value="password" className="gap-2"><Lock className="w-4 h-4" />{t("dash.password_tab")}</TabsTrigger>
-            <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />{t("dash.my_listings_tab")} ({myListings.length})</TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />{t("dash.orders_tab")} ({orders.length})</TabsTrigger>
+            {!isAdmin && <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />{t("dash.my_listings_tab")} ({myListings.length})</TabsTrigger>}
+            {!isAdmin && <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />{t("dash.orders_tab")} ({orders.length})</TabsTrigger>}
           </TabsList>
 
           {/* PROFILE TAB */}

@@ -120,10 +120,20 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     return () => { supabase.removeChannel(channel); };
   }, [orderId, fetchMessages]);
 
+  const prevMessageCountRef = useRef(0);
   useEffect(() => {
-    if (scrollRef.current) {
-      scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
+    if (scrollRef.current && messages.length !== prevMessageCountRef.current) {
+      const isNewMessage = messages.length > prevMessageCountRef.current;
+      if (isNewMessage) {
+        // Only auto-scroll if user is near bottom or it's a brand new message
+        const el = scrollRef.current;
+        const isNearBottom = el.scrollHeight - el.scrollTop - el.clientHeight < 100;
+        if (isNearBottom || prevMessageCountRef.current === 0) {
+          el.scrollTop = el.scrollHeight;
+        }
+      }
     }
+    prevMessageCountRef.current = messages.length;
   }, [messages]);
 
   // Mark messages as read when chat is open and new unread messages exist
@@ -137,10 +147,18 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     
     const markRead = async () => {
       try {
+        // Save scroll position before marking as read
+        const scrollPos = scrollRef.current ? { top: scrollRef.current.scrollTop } : null;
         await Promise.all(
           unread.map(m => (supabase as any).from("order_messages").update({ is_read: true }).eq("id", m.id))
         );
         await fetchMessages();
+        // Restore scroll position after read-status update
+        if (scrollPos && scrollRef.current) {
+          requestAnimationFrame(() => {
+            if (scrollRef.current) scrollRef.current.scrollTop = scrollPos.top;
+          });
+        }
       } finally {
         markAsReadRef.current = false;
       }
@@ -299,7 +317,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const getSenderLabel = (senderId: string) => {
     if (senderId === buyerId) return "ক্রেতা";
     if (senderId === sellerId) return "বিক্রেতা";
-    return "সিস্টেম";
+    return "অ্যাডমিন";
   };
 
   const getMessageStatus = (msg: Message) => {
@@ -425,7 +443,9 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className={`text-[10px] font-semibold ${isBuyerMsg ? "text-blue-500" : "text-emerald-500"}`}>
+                  <span className={`text-[10px] font-semibold ${
+                    isBuyerMsg ? "text-blue-500" : msg.sender_id === sellerId ? "text-emerald-500" : "text-purple-500"
+                  }`}>
                     {getSenderLabel(msg.sender_id)}
                   </span>
                   <span className="text-[10px] text-muted-foreground/60">
