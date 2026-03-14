@@ -147,10 +147,18 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     
     const markRead = async () => {
       try {
+        // Save scroll position before marking as read
+        const scrollPos = scrollRef.current ? { top: scrollRef.current.scrollTop } : null;
         await Promise.all(
           unread.map(m => (supabase as any).from("order_messages").update({ is_read: true }).eq("id", m.id))
         );
         await fetchMessages();
+        // Restore scroll position after read-status update
+        if (scrollPos && scrollRef.current) {
+          requestAnimationFrame(() => {
+            if (scrollRef.current) scrollRef.current.scrollTop = scrollPos.top;
+          });
+        }
       } finally {
         markAsReadRef.current = false;
       }
