@@ -95,15 +95,16 @@ export function Navbar() {
         </div>
 
         <div className="border-t border-border pt-3 space-y-1">
-          <Link to="/dashboard" className="block">
-            <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs h-8">
-              <User className="w-3.5 h-3.5" /> {t("nav.dashboard")}
-            </Button>
-          </Link>
-          {isAdmin && (
+          {isAdmin ? (
             <Link to="/admin" className="block">
               <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs h-8 text-primary">
                 <ShieldCheck className="w-3.5 h-3.5" /> {t("nav.admin")}
+              </Button>
+            </Link>
+          ) : (
+            <Link to="/dashboard" className="block">
+              <Button variant="ghost" size="sm" className="w-full justify-start gap-2 text-xs h-8">
+                <User className="w-3.5 h-3.5" /> {t("nav.dashboard")}
               </Button>
             </Link>
           )}
