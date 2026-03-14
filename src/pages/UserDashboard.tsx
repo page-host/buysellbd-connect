@@ -19,6 +19,7 @@ import {
   ArrowRight, Plus, Camera, Trash2, PackageX
 } from "lucide-react";
 import { OrderChat } from "@/components/OrderChat";
+import { OrderStatusCard } from "@/components/OrderStatusCard";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Order = Tables<"orders">;
@@ -458,91 +459,16 @@ export default function UserDashboard() {
                   </CardContent>
                 </Card>
               ) : (
-                orders.map(order => {
-                  const isBuyer = order.buyer_id === user.id;
-                  return (
-                    <Card key={order.id} className="bg-card border-border">
-                      <CardContent className="p-5">
-                        <div className="flex flex-col sm:flex-row sm:items-center justify-between gap-4">
-                          <div className="flex-1 min-w-0">
-                            <div className="flex items-center gap-2 mb-2 flex-wrap">
-                              <Badge variant="outline" className={`text-xs border ${statusColors[order.status] || ""}`}>
-                                {t(`status.${order.status}`) !== `status.${order.status}` ? t(`status.${order.status}`) : order.status}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {isBuyer ? t("dash.buyer") : t("dash.seller")}
-                              </Badge>
-                              <Badge variant="outline" className="text-xs">
-                                {t(`payment.${order.payment_method}`) !== `payment.${order.payment_method}` ? t(`payment.${order.payment_method}`) : order.payment_method}
-                              </Badge>
-                            </div>
-                            <p className="text-xs text-muted-foreground mb-1">
-                              {t("dash.order_id")} #{order.id.slice(0, 8).toUpperCase()}
-                            </p>
-                            {order.payment_reference && (
-                              <p className="text-xs text-muted-foreground">
-                                {t("dash.reference")}: <span className="font-mono text-foreground">{order.payment_reference}</span>
-                              </p>
-                            )}
-                            {order.admin_notes && (
-                              <p className="text-xs mt-1 text-primary/80 bg-primary/5 rounded px-2 py-1 inline-block">
-                                {t("dash.admin_note")}: {order.admin_notes}
-                              </p>
-                            )}
-                          </div>
-                          <div className="text-right shrink-0">
-                            <p className="text-2xl font-extrabold text-primary">৳{Number(order.amount).toLocaleString()}</p>
-                            <p className="text-xs text-muted-foreground mt-1">
-                              {new Date(order.created_at).toLocaleDateString(lang === "bn" ? "bn-BD" : "en-US", {
-                                year: "numeric", month: "long", day: "numeric"
-                              })}
-                            </p>
-                          </div>
-                        </div>
-
-                        {/* Progress bar */}
-                        <div className="mt-4">
-                          <div className="flex items-center gap-1 text-xs">
-                            {["pending","payment_submitted","payment_confirmed","delivering","completed"].map((s, idx) => {
-                              const statuses = ["pending","payment_submitted","payment_confirmed","delivering","completed"];
-                              const current = statuses.indexOf(order.status);
-                              const isActive = idx <= current;
-                              const isDone = idx < current;
-                              return (
-                                <div key={s} className="flex items-center gap-1 flex-1">
-                                  <div className={`w-2 h-2 rounded-full shrink-0 ${isDone ? "bg-primary" : isActive ? "bg-primary animate-pulse" : "bg-muted-foreground/30"}`} />
-                                  {idx < statuses.length - 1 && (
-                                    <div className={`h-px flex-1 ${isDone ? "bg-primary" : "bg-muted-foreground/20"}`} />
-                                  )}
-                                </div>
-                              );
-                            })}
-                          </div>
-                          <div className="flex justify-between mt-1 text-[10px] text-muted-foreground">
-                            <span>{t("dash.status_pending")}</span>
-                            <span>{t("dash.status_payment")}</span>
-                            <span>{t("dash.status_confirmed")}</span>
-                            <span>{t("dash.status_delivery")}</span>
-                            <span>{t("dash.status_completed")}</span>
-                          </div>
-                        </div>
-
-                        {/* Order Chat - collapsed by default */}
-                        <div className="mt-4">
-                          <OrderChat
-                            orderId={order.id}
-                            buyerId={order.buyer_id}
-                            sellerId={order.seller_id}
-                            orderStatus={order.status}
-                            onOrderComplete={() => {
-                              setOrders(prev => prev.map(o => o.id === order.id ? { ...o, buyer_confirmed: true, status: "completed" as any } : o));
-                            }}
-                          />
-                        </div>
-                      </CardContent>
-                    </Card>
-                  );
-                })
+                orders.map(order => (
+                    <OrderStatusCard
+                      key={order.id}
+                      order={order}
+                      userId={user.id}
+                      onOrderComplete={(orderId) => {
+                        setOrders(prev => prev.map(o => o.id === orderId ? { ...o, buyer_confirmed: true, status: "completed" as any } : o));
+                      }}
+                    />
+                  ))
               )}
             </div>
           </TabsContent>

@@ -105,16 +105,35 @@ export function SupportChat() {
     if (scrollRef.current) scrollRef.current.scrollTop = scrollRef.current.scrollHeight;
   }, [messages, open]);
 
+  // Mark messages as read when chat is open
+  const markingRef = useRef(false);
   useEffect(() => {
-    if (!open || !user) return;
+    if (!open || !user || markingRef.current) return;
     const unread = messages.filter(m => !m.is_read && m.sender_id !== user.id);
-    if (unread.length > 0) {
-      Promise.all(unread.map(m => (supabase as any).from("support_messages").update({ is_read: true }).eq("id", m.id))).then(() => {
-        setMessages(prev => prev.map(m => m.sender_id !== user.id ? { ...m, is_read: true } : m));
-        setUnreadCount(0);
-      });
-    }
-  }, [open, user]);
+    if (unread.length === 0) return;
+    markingRef.current = true;
+
+    const markRead = async () => {
+      try {
+        const results = await Promise.all(
+          unread.map(m => (supabase as any).from("support_messages").update({ is_read: true }).eq("id", m.id))
+        );
+        // Check if any updates failed
+        const allSuccess = results.every((r: any) => !r.error);
+        if (allSuccess) {
+          setMessages(prev => prev.map(m => m.sender_id !== user.id ? { ...m, is_read: true } : m));
+        } else {
+          // Re-fetch to get actual DB state
+          await fetchMessages();
+        }
+      } catch {
+        await fetchMessages();
+      } finally {
+        markingRef.current = false;
+      }
+    };
+    markRead();
+  }, [open, user, messages, fetchMessages]);
 
   const sendMessage = async (msgText?: string) => {
     const text = (msgText || newMessage).trim();
