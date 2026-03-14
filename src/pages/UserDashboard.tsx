@@ -66,6 +66,7 @@ export default function UserDashboard() {
   const [orders, setOrders] = useState<Order[]>([]);
   const [myListings, setMyListings] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
+  const [isAdmin, setIsAdmin] = useState(false);
 
   // Profile form
   const [fullName, setFullName] = useState("");
