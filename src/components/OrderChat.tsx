@@ -79,6 +79,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const [isCredential, setIsCredential] = useState(false);
   const [sending, setSending] = useState(false);
   const [uploading, setUploading] = useState(false);
+  const [pendingFiles, setPendingFiles] = useState<{ file: File; preview?: string }[]>([]);
   const [loading, setLoading] = useState(true);
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
@@ -169,16 +170,11 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     }
   };
 
-  const handleFileUpload = async (e: React.ChangeEvent<HTMLInputElement>) => {
-    const file = e.target.files?.[0];
-    if (!file || !user) return;
+  const handleFileSelect = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const files = e.target.files;
+    if (!files || !user) return;
 
-    const maxSize = 20 * 1024 * 1024; // 20MB
-    if (file.size > maxSize) {
-      toast({ title: "ত্রুটি", description: "ফাইল সাইজ ২০MB এর বেশি হতে পারবে না।", variant: "destructive" });
-      return;
-    }
-
+    const maxSize = 20 * 1024 * 1024;
     const allowedTypes = [
       "image/jpeg", "image/png", "image/gif", "image/webp", "image/svg+xml",
       "application/pdf",
@@ -187,37 +183,62 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
       "text/plain", "text/csv",
     ];
 
-    if (!allowedTypes.includes(file.type)) {
-      toast({ title: "ত্রুটি", description: "এই ধরনের ফাইল সাপোর্ট করে না। ইমেজ, PDF, Doc, Excel পাঠান।", variant: "destructive" });
-      return;
+    const validFiles: { file: File; preview?: string }[] = [];
+    for (const file of Array.from(files)) {
+      if (file.size > maxSize) {
+        toast({ title: "ত্রুটি", description: `${file.name} — ফাইল সাইজ ২০MB এর বেশি।`, variant: "destructive" });
+        continue;
+      }
+      if (!allowedTypes.includes(file.type)) {
+        toast({ title: "ত্রুটি", description: `${file.name} — এই ধরনের ফাইল সাপোর্ট করে না।`, variant: "destructive" });
+        continue;
+      }
+      const preview = file.type.startsWith("image/") ? URL.createObjectURL(file) : undefined;
+      validFiles.push({ file, preview });
     }
 
-    setUploading(true);
-    const ext = file.name.split(".").pop();
-    const filePath = `${orderId}/${user.id}/${Date.now()}.${ext}`;
-    
-    const { error: uploadError } = await supabase.storage
-      .from("order-attachments")
-      .upload(filePath, file);
-
-    if (uploadError) {
-      setUploading(false);
-      toast({ title: "আপলোড ব্যর্থ", description: uploadError.message, variant: "destructive" });
-      return;
+    if (validFiles.length > 0) {
+      setPendingFiles(prev => [...prev, ...validFiles]);
     }
-
-    const { data: urlData } = supabase.storage.from("order-attachments").getPublicUrl(filePath);
-    
-    // For private buckets, use createSignedUrl
-    const { data: signedData } = await supabase.storage.from("order-attachments").createSignedUrl(filePath, 60 * 60 * 24 * 365); // 1 year
-    const fileUrl = signedData?.signedUrl || urlData.publicUrl;
-    
-    // Send as attachment message
-    await sendMessage(`[ATTACHMENT:${fileUrl}|${file.name}]`);
-    setUploading(false);
-    
-    // Reset file input
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const removePendingFile = (index: number) => {
+    setPendingFiles(prev => {
+      const removed = prev[index];
+      if (removed?.preview) URL.revokeObjectURL(removed.preview);
+      return prev.filter((_, i) => i !== index);
+    });
+  };
+
+  const sendPendingFiles = async () => {
+    if (pendingFiles.length === 0 || !user) return;
+    setUploading(true);
+
+    for (const { file } of pendingFiles) {
+      const ext = file.name.split(".").pop();
+      const filePath = `${orderId}/${user.id}/${Date.now()}-${Math.random().toString(36).slice(2, 6)}.${ext}`;
+      
+      const { error: uploadError } = await supabase.storage
+        .from("order-attachments")
+        .upload(filePath, file);
+
+      if (uploadError) {
+        toast({ title: "আপলোড ব্যর্থ", description: `${file.name}: ${uploadError.message}`, variant: "destructive" });
+        continue;
+      }
+
+      const { data: signedData } = await supabase.storage.from("order-attachments").createSignedUrl(filePath, 60 * 60 * 24 * 365);
+      const { data: urlData } = supabase.storage.from("order-attachments").getPublicUrl(filePath);
+      const fileUrl = signedData?.signedUrl || urlData.publicUrl;
+      
+      await sendMessage(`[ATTACHMENT:${fileUrl}|${file.name}]`);
+    }
+
+    // Cleanup previews
+    pendingFiles.forEach(f => { if (f.preview) URL.revokeObjectURL(f.preview); });
+    setPendingFiles([]);
+    setUploading(false);
   };
 
   const confirmOrder = async () => {
@@ -488,7 +509,8 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
               type="file"
               className="hidden"
               accept="image/*,.pdf,.doc,.docx,.xls,.xlsx,.csv,.txt"
-              onChange={handleFileUpload}
+              multiple
+              onChange={handleFileSelect}
             />
             <Button
               size="icon"
@@ -509,6 +531,38 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
               {sending ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
             </Button>
           </div>
+          {/* Pending files preview */}
+          {pendingFiles.length > 0 && (
+            <div className="mt-2 space-y-1.5">
+              <div className="flex flex-wrap gap-2">
+                {pendingFiles.map((pf, idx) => (
+                  <div key={idx} className="relative group flex items-center gap-1.5 px-2 py-1 rounded-lg bg-secondary/60 border border-border text-xs">
+                    {pf.preview ? (
+                      <img src={pf.preview} alt={pf.file.name} className="w-8 h-8 rounded object-cover" />
+                    ) : (
+                      <FileText className="w-4 h-4 text-muted-foreground" />
+                    )}
+                    <span className="max-w-[100px] truncate text-foreground">{pf.file.name}</span>
+                    <button
+                      onClick={() => removePendingFile(idx)}
+                      className="ml-0.5 text-muted-foreground hover:text-destructive transition-colors"
+                    >
+                      <X className="w-3.5 h-3.5" />
+                    </button>
+                  </div>
+                ))}
+              </div>
+              <Button
+                size="sm"
+                className="gradient-primary text-primary-foreground border-0 text-xs rounded-full gap-1"
+                onClick={sendPendingFiles}
+                disabled={uploading}
+              >
+                {uploading ? <Loader2 className="w-3.5 h-3.5 animate-spin" /> : <Send className="w-3.5 h-3.5" />}
+                {pendingFiles.length}টি ফাইল পাঠান
+              </Button>
+            </div>
+          )}
           {uploading && (
             <p className="text-[10px] text-muted-foreground mt-1.5 flex items-center gap-1">
               <Loader2 className="w-3 h-3 animate-spin" /> ফাইল আপলোড হচ্ছে...

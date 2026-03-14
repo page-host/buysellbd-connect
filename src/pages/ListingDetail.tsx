@@ -81,7 +81,7 @@ const ListingDetail = () => {
       return;
     }
     setOrdering(true);
-    const { error } = await supabase.from("orders").insert({
+    const { data: orderData, error } = await supabase.from("orders").insert({
       listing_id: listing.id,
       buyer_id: user.id,
       seller_id: listing.seller_id,
@@ -89,7 +89,7 @@ const ListingDetail = () => {
       payment_method: paymentMethod as any,
       payment_reference: paymentRef.trim(),
       status: "payment_submitted" as any,
-    });
+    }).select("id").single();
     setOrdering(false);
     if (error) {
       toast({ title: "অর্ডার ব্যর্থ", description: error.message, variant: "destructive" });
@@ -97,6 +97,47 @@ const ListingDetail = () => {
       toast({ title: "অর্ডার সফল!", description: "আপনার পেমেন্ট ভেরিফাই করা হবে।" });
       setOrderDialog(false);
       setPaymentRef("");
+
+      const orderId = orderData?.id || "";
+      const shortId = orderId.slice(0, 8).toUpperCase();
+
+      // Notify seller: new order placed
+      await supabase.rpc("create_notification", {
+        _user_id: listing.seller_id,
+        _title: "🛒 নতুন অর্ডার এসেছে",
+        _message: `আপনার "${listing.title}" লিস্টিংয়ে নতুন অর্ডার #${shortId} এসেছে।`,
+        _type: "order",
+        _reference_id: orderId,
+      });
+      // Add English translation
+      const { data: sellerNotif } = await supabase.from("notifications").select("id").eq("user_id", listing.seller_id).eq("type", "order").order("created_at", { ascending: false }).limit(1);
+      if (sellerNotif?.[0]) {
+        await (supabase as any).from("notifications").update({
+          title_en: "🛒 New Order Received",
+          message_en: `New order #${shortId} received for "${listing.title}".`,
+        }).eq("id", sellerNotif[0].id);
+      }
+
+      // Notify admins: payment needs confirmation
+      const { data: adminRoles } = await supabase.from("user_roles").select("user_id").eq("role", "admin" as any);
+      if (adminRoles) {
+        for (const adminRole of adminRoles) {
+          await supabase.rpc("create_notification", {
+            _user_id: adminRole.user_id,
+            _title: "💳 পেমেন্ট কনফার্ম করুন",
+            _message: `অর্ডার #${shortId} এ পেমেন্ট জমা দেওয়া হয়েছে। যাচাই করুন।`,
+            _type: "order",
+            _reference_id: orderId,
+          });
+          const { data: adminNotif } = await supabase.from("notifications").select("id").eq("user_id", adminRole.user_id).eq("type", "order").order("created_at", { ascending: false }).limit(1);
+          if (adminNotif?.[0]) {
+            await (supabase as any).from("notifications").update({
+              title_en: "💳 Confirm Payment",
+              message_en: `Payment submitted for order #${shortId}. Please verify.`,
+            }).eq("id", adminNotif[0].id);
+          }
+        }
+      }
     }
   };
 

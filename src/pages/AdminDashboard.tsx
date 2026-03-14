@@ -1,4 +1,4 @@
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { useNavigate } from "react-router-dom";
 import { useAuth } from "@/hooks/useAuth";
 import { useLanguage } from "@/contexts/LanguageContext";
@@ -71,9 +71,13 @@ export default function AdminDashboard() {
   const [loadingData, setLoadingData] = useState(true);
   const [expandedOrder, setExpandedOrder] = useState<string | null>(null);
 
+  const adminCheckDone = useRef(false);
+
   useEffect(() => {
     if (authLoading) return;
     if (!user) { navigate("/login"); return; }
+    if (adminCheckDone.current) return;
+    adminCheckDone.current = true;
 
     supabase.rpc("has_role", { _user_id: user.id, _role: "admin" }).then(({ data }) => {
       if (!data) { navigate("/"); toast({ title: "অ্যাক্সেস নেই", description: "আপনি অ্যাডমিন নন।", variant: "destructive" }); }
@@ -158,11 +162,31 @@ export default function AdminDashboard() {
   }, [isAdmin]);
 
   const updateOrderStatus = async (id: string, status: string) => {
+    const order = orders.find(o => o.id === id);
     const { error } = await supabase.from("orders").update({ status: status as any }).eq("id", id);
     if (error) toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
     else {
       setOrders(prev => prev.map(o => o.id === id ? { ...o, status: status as any } : o));
       toast({ title: "আপডেট হয়েছে" });
+
+      // Notify buyer when payment is confirmed
+      if (status === "payment_confirmed" && order) {
+        const shortId = id.slice(0, 8).toUpperCase();
+        await supabase.rpc("create_notification", {
+          _user_id: order.buyer_id,
+          _title: "✅ পেমেন্ট কনফার্ম হয়েছে",
+          _message: `আপনার অর্ডার #${shortId} এর পেমেন্ট কনফার্ম হয়েছে। সেলার শীঘ্রই ডেলিভারি করবে।`,
+          _type: "order",
+          _reference_id: id,
+        });
+        const { data: buyerNotif } = await supabase.from("notifications").select("id").eq("user_id", order.buyer_id).eq("type", "order").order("created_at", { ascending: false }).limit(1);
+        if (buyerNotif?.[0]) {
+          await (supabase as any).from("notifications").update({
+            title_en: "✅ Payment Confirmed",
+            message_en: `Payment for order #${shortId} has been confirmed. Seller will deliver soon.`,
+          }).eq("id", buyerNotif[0].id);
+        }
+      }
     }
   };
 
