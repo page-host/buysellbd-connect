@@ -435,7 +435,9 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                 <div className="flex items-center gap-1.5 mb-0.5">
-                  <span className={`text-[10px] font-semibold ${isBuyerMsg ? "text-blue-500" : "text-emerald-500"}`}>
+                  <span className={`text-[10px] font-semibold ${
+                    isBuyerMsg ? "text-blue-500" : msg.sender_id === sellerId ? "text-emerald-500" : "text-purple-500"
+                  }`}>
                     {getSenderLabel(msg.sender_id)}
                   </span>
                   <span className="text-[10px] text-muted-foreground/60">
