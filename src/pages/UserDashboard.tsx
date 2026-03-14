@@ -248,7 +248,8 @@ export default function UserDashboard() {
           </div>
         </div>
 
-        {/* Stats Cards */}
+        {/* Stats Cards - hide for admin */}
+        {!isAdmin && (
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
           {[
             { label: t("dash.total_spent"), value: `৳${totalSpent.toLocaleString()}`, icon: Wallet, color: "text-red-400", bg: "bg-red-500/10" },
@@ -269,13 +270,14 @@ export default function UserDashboard() {
             </Card>
           ))}
         </div>
+        )}
 
         <Tabs defaultValue="profile">
           <TabsList className="mb-6 bg-muted flex-wrap">
             <TabsTrigger value="profile" className="gap-2"><User className="w-4 h-4" />{t("dash.profile_tab")}</TabsTrigger>
             <TabsTrigger value="password" className="gap-2"><Lock className="w-4 h-4" />{t("dash.password_tab")}</TabsTrigger>
-            <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />{t("dash.my_listings_tab")} ({myListings.length})</TabsTrigger>
-            <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />{t("dash.orders_tab")} ({orders.length})</TabsTrigger>
+            {!isAdmin && <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />{t("dash.my_listings_tab")} ({myListings.length})</TabsTrigger>}
+            {!isAdmin && <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />{t("dash.orders_tab")} ({orders.length})</TabsTrigger>}
           </TabsList>
 
           {/* PROFILE TAB */}
