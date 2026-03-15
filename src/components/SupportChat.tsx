@@ -45,6 +45,7 @@ export function SupportChat() {
   const [sending, setSending] = useState(false);
   const [loading, setLoading] = useState(false);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
   const scrollRef = useRef<HTMLDivElement>(null);
 
   // Check if user is admin
@@ -60,9 +61,13 @@ export function SupportChat() {
   // Reactively compute unread count whenever messages change
   useEffect(() => {
     if (!user) { setUnreadCount(0); return; }
-    const count = messages.filter(m => !m.is_read && m.sender_id !== user.id).length;
+    const count = messages.filter(m =>
+      !m.is_read &&
+      m.sender_id !== user.id &&
+      (!lastSeenAt || new Date(m.created_at).getTime() > new Date(lastSeenAt).getTime())
+    ).length;
     setUnreadCount(count);
-  }, [messages, user]);
+  }, [messages, user, lastSeenAt]);
 
   const fetchMessages = useCallback(async () => {
     if (!user) return;
@@ -76,6 +81,30 @@ export function SupportChat() {
     }
     setLoading(false);
   }, [user]);
+
+  const persistLastSeen = useCallback((timestamp: string) => {
+    setLastSeenAt(timestamp);
+    if (user) {
+      localStorage.setItem(`support-chat-seen-${user.id}`, timestamp);
+    }
+  }, [user]);
+
+  useEffect(() => {
+    if (!user) {
+      setLastSeenAt(null);
+      return;
+    }
+    const saved = localStorage.getItem(`support-chat-seen-${user.id}`);
+    setLastSeenAt(saved);
+  }, [user]);
+
+  useEffect(() => {
+    if (!open || !user) return;
+    const latestIncoming = [...messages].reverse().find(m => m.sender_id !== user.id);
+    if (latestIncoming) {
+      persistLastSeen(latestIncoming.created_at);
+    }
+  }, [open, messages, user, persistLastSeen]);
 
   useEffect(() => {
     if (!user) return;
@@ -116,24 +145,29 @@ export function SupportChat() {
     const markRead = async () => {
       try {
         const results = await Promise.all(
-          unread.map(m => (supabase as any).from("support_messages").update({ is_read: true }).eq("id", m.id))
+          unread.map(m =>
+            (supabase as any)
+              .from("support_messages")
+              .update({ is_read: true })
+              .eq("id", m.id)
+              .select("id")
+          )
         );
-        // Check if any updates failed
-        const allSuccess = results.every((r: any) => !r.error);
-        if (allSuccess) {
-          setMessages(prev => prev.map(m => m.sender_id !== user.id ? { ...m, is_read: true } : m));
-        } else {
-          // Re-fetch to get actual DB state
-          await fetchMessages();
+
+        setMessages(prev => prev.map(m => m.sender_id !== user.id ? { ...m, is_read: true } : m));
+
+        const updatedRows = results.reduce((sum: number, r: any) => sum + ((r.data?.length) || 0), 0);
+        const hasErrors = results.some((r: any) => r.error);
+        if (hasErrors || updatedRows < unread.length) {
+          const latestIncoming = [...messages].reverse().find(m => m.sender_id !== user.id);
+          if (latestIncoming) persistLastSeen(latestIncoming.created_at);
         }
-      } catch {
-        await fetchMessages();
       } finally {
         markingRef.current = false;
       }
     };
     markRead();
-  }, [open, user, messages, fetchMessages]);
+  }, [open, user, messages, persistLastSeen]);
 
   const sendMessage = async (msgText?: string) => {
     const text = (msgText || newMessage).trim();

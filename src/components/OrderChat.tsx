@@ -22,6 +22,8 @@ interface OrderChatProps {
   orderStatus: string;
   onOrderComplete?: () => void;
   isAdminView?: boolean;
+  openChatId?: string | null;
+  onChatToggle?: (orderId: string | null) => void;
 }
 
 interface Message {
@@ -72,7 +74,7 @@ function AttachmentPreview({ url, name }: { url: string; name: string }) {
   );
 }
 
-export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComplete, isAdminView = false }: OrderChatProps) {
+export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComplete, isAdminView = false, openChatId, onChatToggle }: OrderChatProps) {
   const { user } = useAuth();
   const [messages, setMessages] = useState<Message[]>([]);
   const [newMessage, setNewMessage] = useState("");
@@ -84,9 +86,19 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const [reportOpen, setReportOpen] = useState(false);
   const [reportMessage, setReportMessage] = useState("");
   const [reportSending, setReportSending] = useState(false);
-  const [chatOpen, setChatOpen] = useState(false);
+  const [chatOpenLocal, setChatOpenLocal] = useState(false);
+  // Use controlled state if provided, otherwise local
+  const chatOpen = openChatId !== undefined ? openChatId === orderId : chatOpenLocal;
+  const setChatOpen = (open: boolean) => {
+    if (onChatToggle) {
+      onChatToggle(open ? orderId : null);
+    } else {
+      setChatOpenLocal(open);
+    }
+  };
   const scrollRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [lastSeenAt, setLastSeenAt] = useState<string | null>(null);
 
   const isBuyer = user?.id === buyerId;
   const isSeller = user?.id === sellerId;
@@ -95,7 +107,37 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const hasCredentials = messages.some(m => m.is_credentials);
   const isCompleted = ["completed", "refunded", "cancelled"].includes(orderStatus);
 
-  const unreadCount = user ? messages.filter(m => m.sender_id !== user.id && !m.is_read).length : 0;
+  const unreadCount = user
+    ? messages.filter(m =>
+        m.sender_id !== user.id &&
+        !m.is_read &&
+        (!lastSeenAt || new Date(m.created_at).getTime() > new Date(lastSeenAt).getTime())
+      ).length
+    : 0;
+
+  const persistLastSeen = useCallback((timestamp: string) => {
+    setLastSeenAt(timestamp);
+    if (user) {
+      localStorage.setItem(`order-chat-seen-${user.id}-${orderId}`, timestamp);
+    }
+  }, [user, orderId]);
+
+  useEffect(() => {
+    if (!user) {
+      setLastSeenAt(null);
+      return;
+    }
+    const saved = localStorage.getItem(`order-chat-seen-${user.id}-${orderId}`);
+    setLastSeenAt(saved);
+  }, [user, orderId]);
+
+  useEffect(() => {
+    if (!chatOpen || !user) return;
+    const latestIncoming = [...messages].reverse().find(m => m.sender_id !== user.id);
+    if (latestIncoming) {
+      persistLastSeen(latestIncoming.created_at);
+    }
+  }, [chatOpen, messages, user, persistLastSeen]);
 
   const fetchMessages = useCallback(async () => {
     const { data } = await (supabase as any)
@@ -147,24 +189,33 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
     
     const markRead = async () => {
       try {
-        // Save scroll position before marking as read
-        const scrollPos = scrollRef.current ? { top: scrollRef.current.scrollTop } : null;
-        await Promise.all(
-          unread.map(m => (supabase as any).from("order_messages").update({ is_read: true }).eq("id", m.id))
+        const results = await Promise.all(
+          unread.map(m =>
+            (supabase as any)
+              .from("order_messages")
+              .update({ is_read: true })
+              .eq("id", m.id)
+              .select("id")
+          )
         );
-        await fetchMessages();
-        // Restore scroll position after read-status update
-        if (scrollPos && scrollRef.current) {
-          requestAnimationFrame(() => {
-            if (scrollRef.current) scrollRef.current.scrollTop = scrollPos.top;
-          });
+
+        // Keep UI synced even if DB update is partially blocked by RLS
+        setMessages(prev => prev.map(m =>
+          unread.some(u => u.id === m.id) ? { ...m, is_read: true } : m
+        ));
+
+        const updatedRows = results.reduce((sum: number, r: any) => sum + ((r.data?.length) || 0), 0);
+        const hasErrors = results.some((r: any) => r.error);
+        if (hasErrors || updatedRows < unread.length) {
+          const latestIncoming = [...messages].reverse().find(m => m.sender_id !== user.id);
+          if (latestIncoming) persistLastSeen(latestIncoming.created_at);
         }
       } finally {
         markAsReadRef.current = false;
       }
     };
     markRead();
-  }, [chatOpen, messages, user, isAdminView, fetchMessages]);
+  }, [chatOpen, messages, user, isAdminView, persistLastSeen]);
 
   const sendMessage = async (customMsg?: string) => {
     const text = (customMsg || newMessage).trim();
@@ -437,16 +488,17 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
           </div>
         ) : (
           messages.map((msg) => {
-            const isMe = msg.sender_id === user?.id;
-            const isBuyerMsg = msg.sender_id === buyerId;
+            const isSystemMsg = msg.message.startsWith("✅ ক্রেতা অর্ডার কনফার্ম করেছে");
+            const isMe = msg.sender_id === user?.id && !isSystemMsg;
+            const isBuyerMsg = msg.sender_id === buyerId && !isSystemMsg;
             const attachment = parseAttachment(msg.message);
             return (
               <div key={msg.id} className={`flex flex-col ${isMe ? "items-end" : "items-start"}`}>
                 <div className="flex items-center gap-1.5 mb-0.5">
                   <span className={`text-[10px] font-semibold ${
-                    isBuyerMsg ? "text-blue-500" : msg.sender_id === sellerId ? "text-emerald-500" : "text-purple-500"
+                    isSystemMsg ? "text-purple-500" : isBuyerMsg ? "text-blue-500" : msg.sender_id === sellerId ? "text-emerald-500" : "text-purple-500"
                   }`}>
-                    {getSenderLabel(msg.sender_id)}
+                    {isSystemMsg ? "অ্যাডমিন" : getSenderLabel(msg.sender_id)}
                   </span>
                   <span className="text-[10px] text-muted-foreground/60">
                     {new Date(msg.created_at).toLocaleTimeString("bn-BD", { hour: "2-digit", minute: "2-digit" })}

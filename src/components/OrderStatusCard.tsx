@@ -13,6 +13,8 @@ interface OrderStatusCardProps {
   order: Order;
   userId: string;
   onOrderComplete: (orderId: string) => void;
+  openChatId?: string | null;
+  onChatToggle?: (orderId: string | null) => void;
 }
 
 const statusSteps = ["pending", "payment_submitted", "payment_confirmed", "delivering", "completed"];
@@ -41,7 +43,7 @@ const accentColors: Record<string, { from: string; via: string; border: string; 
   cancelled: { from: "from-muted-foreground/30", via: "via-muted-foreground/50", border: "border-border", glow: "rgba(0,0,0,0.03)" },
 };
 
-export function OrderStatusCard({ order, userId, onOrderComplete }: OrderStatusCardProps) {
+export function OrderStatusCard({ order, userId, onOrderComplete, openChatId, onChatToggle }: OrderStatusCardProps) {
   const { t, lang } = useLanguage();
   const isBuyer = order.buyer_id === userId;
   const config = statusConfig[order.status] || statusConfig.pending;
@@ -168,6 +170,8 @@ export function OrderStatusCard({ order, userId, onOrderComplete }: OrderStatusC
             sellerId={order.seller_id}
             orderStatus={order.status}
             onOrderComplete={() => onOrderComplete(order.id)}
+            openChatId={openChatId}
+            onChatToggle={onChatToggle}
           />
         </div>
       </div>

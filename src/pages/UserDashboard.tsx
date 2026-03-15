@@ -67,6 +67,7 @@ export default function UserDashboard() {
   const [myListings, setMyListings] = useState<any[]>([]);
   const [loadingData, setLoadingData] = useState(true);
   const [isAdmin, setIsAdmin] = useState(false);
+  const [openChatId, setOpenChatId] = useState<string | null>(null);
 
   // Profile form
   const [fullName, setFullName] = useState("");
@@ -476,6 +477,8 @@ export default function UserDashboard() {
                       onOrderComplete={(orderId) => {
                         setOrders(prev => prev.map(o => o.id === orderId ? { ...o, buyer_confirmed: true, status: "completed" as any } : o));
                       }}
+                      openChatId={openChatId}
+                      onChatToggle={setOpenChatId}
                     />
                   ))
               )}
