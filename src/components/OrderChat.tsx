@@ -488,7 +488,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
           </div>
         ) : (
           messages.map((msg) => {
-            const isSystemMsg = msg.message.startsWith("✅ ক্রেতা অর্ডার কনফার্ম করেছে");
+            const isSystemMsg = msg.message.includes("ক্রেতা অর্ডার কনফার্ম করেছে") || msg.message.includes("অর্ডার সম্পন্ন হয়েছে");
             const isMe = msg.sender_id === user?.id && !isSystemMsg;
             const isBuyerMsg = msg.sender_id === buyerId && !isSystemMsg;
             const attachment = parseAttachment(msg.message);

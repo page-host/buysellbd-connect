@@ -20,6 +20,7 @@ import {
 } from "lucide-react";
 import { OrderChat } from "@/components/OrderChat";
 import { OrderStatusCard } from "@/components/OrderStatusCard";
+import { WalletPayouts } from "@/components/WalletPayouts";
 import type { Tables } from "@/integrations/supabase/types";
 
 type Order = Tables<"orders">;
@@ -279,6 +280,7 @@ export default function UserDashboard() {
             <TabsTrigger value="password" className="gap-2"><Lock className="w-4 h-4" />{t("dash.password_tab")}</TabsTrigger>
             {!isAdmin && <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />{t("dash.my_listings_tab")} ({myListings.length})</TabsTrigger>}
             {!isAdmin && <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />{t("dash.orders_tab")} ({orders.length})</TabsTrigger>}
+            {!isAdmin && <TabsTrigger value="wallet" className="gap-2"><Wallet className="w-4 h-4" />টাকা উত্তোলন</TabsTrigger>}
           </TabsList>
 
           {/* PROFILE TAB */}
@@ -483,6 +485,14 @@ export default function UserDashboard() {
                   ))
               )}
             </div>
+          </TabsContent>
+
+          {/* WALLET & PAYOUTS TAB */}
+          <TabsContent value="wallet">
+            <WalletPayouts
+              totalEarned={totalEarned}
+              pendingPayout={sellOrders.filter(o => ["delivering", "delivered"].includes(o.status)).reduce((s, o) => s + Number(o.amount), 0)}
+            />
           </TabsContent>
         </Tabs>
       </div>

@@ -13,10 +13,15 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban, Headphones, Download, FileSpreadsheet, FileText } from "lucide-react";
+import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban, Headphones, Download, FileSpreadsheet, FileText, Wallet, Send } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { OrderChat } from "@/components/OrderChat";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
+import { Input } from "@/components/ui/input";
+import { Label } from "@/components/ui/label";
+import {
+  Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter, DialogClose
+} from "@/components/ui/dialog";
 
 type Order = Tables<"orders">;
 type Listing = Tables<"listings">;
@@ -353,6 +358,9 @@ export default function AdminDashboard() {
                 <Headphones className="w-3.5 h-3.5" /> {t("admin.support_tab")} ({supportChats.reduce((s, c) => s + c.unread, 0)})
               </TabsTrigger>
               <TabsTrigger value="messages">{t("admin.messages_tab")} ({messages.length})</TabsTrigger>
+              <TabsTrigger value="payouts" className="gap-1">
+                <Wallet className="w-3.5 h-3.5" /> পেআউট ম্যানেজমেন্ট
+              </TabsTrigger>
             </TabsList>
 
             {/* ORDERS TAB */}
@@ -812,9 +820,256 @@ export default function AdminDashboard() {
                 </CardContent>
               </Card>
             </TabsContent>
+            {/* PAYOUT MANAGEMENT TAB */}
+            <TabsContent value="payouts">
+              <PayoutManagementTab
+                orders={orders}
+                profiles={profiles}
+                getProfileName={getProfileName}
+                expandedOrder={expandedOrder}
+                setExpandedOrder={setExpandedOrder}
+                listings={listings}
+              />
+            </TabsContent>
           </Tabs>
         )}
       </div>
     </div>
+  );
+}
+
+/* ── Payout Management Tab Component ── */
+
+interface PayoutRow {
+  id: string;
+  orderId: string;
+  sellerId: string;
+  sellerName: string;
+  amount: number;
+  paymentMethod: string;
+  paymentInfo: string;
+  date: string;
+  status: "pending" | "completed";
+  transactionId?: string;
+}
+
+function PayoutManagementTab({
+  orders,
+  profiles,
+  getProfileName,
+  expandedOrder,
+  setExpandedOrder,
+  listings,
+}: {
+  orders: Order[];
+  profiles: Profile[];
+  getProfileName: (id: string) => string;
+  expandedOrder: string | null;
+  setExpandedOrder: (id: string | null) => void;
+  listings: Listing[];
+}) {
+  const [payModal, setPayModal] = useState<PayoutRow | null>(null);
+  const [txId, setTxId] = useState("");
+  const [confirming, setConfirming] = useState(false);
+  const [completedPayouts, setCompletedPayouts] = useState<Record<string, { txId: string }>>({});
+
+  const methodLabels: Record<string, string> = {
+    bkash: "বিকাশ",
+    nagad: "নগদ",
+    rocket: "রকেট",
+    usdt: "USDT",
+    trx: "TRX",
+  };
+
+  // Build payout rows from completed orders where seller needs to be paid
+  const payoutRows: PayoutRow[] = orders
+    .filter(o => o.status === "completed")
+    .map(o => {
+      const listing = listings.find(l => l.id === o.listing_id);
+      const paymentInfo = (listing as any)?.payment_info || "—";
+      const profile = profiles.find(p => p.user_id === o.seller_id);
+      return {
+        id: o.id,
+        orderId: o.id,
+        sellerId: o.seller_id,
+        sellerName: profile?.full_name || o.seller_id.slice(0, 8),
+        amount: Number(o.amount),
+        paymentMethod: o.payment_method || "—",
+        paymentInfo,
+        date: new Date(o.created_at).toLocaleDateString("bn-BD"),
+        status: completedPayouts[o.id] ? "completed" : "pending",
+        transactionId: completedPayouts[o.id]?.txId,
+      };
+    });
+
+  const handleConfirmPay = () => {
+    if (!payModal) return;
+    if (!txId.trim() || txId.trim().length < 4) {
+      toast({ title: "ত্রুটি", description: "সঠিক ট্রানজেকশন আইডি দিন।", variant: "destructive" });
+      return;
+    }
+    setConfirming(true);
+    setTimeout(() => {
+      setCompletedPayouts(prev => ({ ...prev, [payModal.id]: { txId: txId.trim() } }));
+      setConfirming(false);
+      setPayModal(null);
+      setTxId("");
+      toast({ title: "✅ পেআউট সম্পন্ন", description: `ট্রানজেকশন আইডি: ${txId.trim()}` });
+    }, 600);
+  };
+
+  return (
+    <>
+      <Card className="bg-card border-border">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2">
+            <Wallet className="w-5 h-5 text-primary" /> পেআউট ম্যানেজমেন্ট
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {payoutRows.length === 0 ? (
+            <div className="py-12 text-center">
+              <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />
+              <p className="text-muted-foreground text-sm">কোনো পেন্ডিং পেআউট নেই।</p>
+            </div>
+          ) : (
+            <div className="overflow-x-auto">
+              <Table>
+                <TableHeader>
+                  <TableRow>
+                    <TableHead>বিক্রেতার নাম</TableHead>
+                    <TableHead>পরিমাণ</TableHead>
+                    <TableHead>পেমেন্ট মেথড</TableHead>
+                    <TableHead>অ্যাকাউন্ট নম্বর</TableHead>
+                    <TableHead>তারিখ</TableHead>
+                    <TableHead>স্ট্যাটাস</TableHead>
+                    <TableHead>অ্যাকশন</TableHead>
+                  </TableRow>
+                </TableHeader>
+                <TableBody>
+                  {payoutRows.map(row => (
+                    <React.Fragment key={row.id}>
+                      <TableRow>
+                        <TableCell className="text-sm font-medium">{row.sellerName}</TableCell>
+                        <TableCell className="font-semibold">৳{row.amount.toLocaleString()}</TableCell>
+                        <TableCell>
+                          <Badge variant="outline" className="text-xs">{methodLabels[row.paymentMethod] || row.paymentMethod}</Badge>
+                        </TableCell>
+                        <TableCell className="text-sm font-mono max-w-[180px] truncate">{row.paymentInfo}</TableCell>
+                        <TableCell className="text-xs text-muted-foreground whitespace-nowrap">{row.date}</TableCell>
+                        <TableCell>
+                          {row.status === "completed" ? (
+                            <Badge variant="outline" className="text-xs bg-green-500/20 text-green-500 border-green-500/30">সম্পন্ন</Badge>
+                          ) : (
+                            <Badge variant="outline" className="text-xs bg-yellow-500/20 text-yellow-500 border-yellow-500/30">পেন্ডিং</Badge>
+                          )}
+                        </TableCell>
+                        <TableCell>
+                          <div className="flex items-center gap-2">
+                            <Button
+                              size="sm"
+                              variant="outline"
+                              className="h-7 text-xs gap-1"
+                              onClick={() => setExpandedOrder(expandedOrder === row.orderId ? null : row.orderId)}
+                            >
+                              <MessageSquare className="w-3 h-3" />
+                              চ্যাট
+                              <ChevronDown className={`w-3 h-3 transition-transform ${expandedOrder === row.orderId ? "rotate-180" : ""}`} />
+                            </Button>
+                            {row.status === "pending" && (
+                              <Button
+                                size="sm"
+                                className="h-7 text-xs gap-1 bg-primary hover:bg-primary/90 text-primary-foreground"
+                                onClick={() => { setPayModal(row); setTxId(""); }}
+                              >
+                                <Send className="w-3 h-3" /> Pay Now
+                              </Button>
+                            )}
+                            {row.status === "completed" && row.transactionId && (
+                              <span className="text-xs text-muted-foreground font-mono">TxID: {row.transactionId}</span>
+                            )}
+                          </div>
+                        </TableCell>
+                      </TableRow>
+                      {expandedOrder === row.orderId && (
+                        <TableRow>
+                          <TableCell colSpan={7} className="p-4">
+                            <OrderChat
+                              orderId={row.orderId}
+                              buyerId={orders.find(o => o.id === row.orderId)?.buyer_id || ""}
+                              sellerId={row.sellerId}
+                              orderStatus="completed"
+                              isAdminView={true}
+                            />
+                          </TableCell>
+                        </TableRow>
+                      )}
+                    </React.Fragment>
+                  ))}
+                </TableBody>
+              </Table>
+            </div>
+          )}
+        </CardContent>
+      </Card>
+
+      {/* Pay Now Modal */}
+      <Dialog open={!!payModal} onOpenChange={(open) => { if (!open) setPayModal(null); }}>
+        <DialogContent className="sm:max-w-md">
+          <DialogHeader>
+            <DialogTitle className="flex items-center gap-2">
+              <Send className="w-5 h-5 text-primary" /> পেআউট করুন
+            </DialogTitle>
+            <DialogDescription>বিক্রেতাকে পেমেন্ট পাঠানোর পর ট্রানজেকশন আইডি দিন।</DialogDescription>
+          </DialogHeader>
+          {payModal && (
+            <div className="space-y-4 py-2">
+              <div className="rounded-lg bg-muted/50 p-4 space-y-2 text-sm">
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">বিক্রেতা:</span>
+                  <span className="font-medium text-foreground">{payModal.sellerName}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">পরিমাণ:</span>
+                  <span className="font-bold text-foreground">৳{payModal.amount.toLocaleString()}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">মেথড:</span>
+                  <span className="font-medium text-foreground">{methodLabels[payModal.paymentMethod] || payModal.paymentMethod}</span>
+                </div>
+                <div className="flex justify-between">
+                  <span className="text-muted-foreground">অ্যাকাউন্ট:</span>
+                  <span className="font-mono text-foreground">{payModal.paymentInfo}</span>
+                </div>
+              </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="txid">ট্রানজেকশন আইডি</Label>
+                <Input
+                  id="txid"
+                  placeholder="যেমন: TXN123456789"
+                  value={txId}
+                  onChange={e => setTxId(e.target.value)}
+                  maxLength={50}
+                />
+              </div>
+            </div>
+          )}
+          <DialogFooter className="gap-2">
+            <DialogClose asChild>
+              <Button variant="outline">বাতিল</Button>
+            </DialogClose>
+            <Button
+              className="gradient-primary text-primary-foreground border-0 font-semibold gap-2"
+              onClick={handleConfirmPay}
+              disabled={confirming}
+            >
+              {confirming ? <Loader2 className="w-4 h-4 animate-spin" /> : <Send className="w-4 h-4" />}
+              {confirming ? "প্রসেসিং..." : "কনফার্ম পেমেন্ট"}
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }
