@@ -13,7 +13,7 @@ import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@
 import { Textarea } from "@/components/ui/textarea";
 import { Switch } from "@/components/ui/switch";
 import { toast } from "@/hooks/use-toast";
-import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban, Headphones, Download, FileSpreadsheet, FileText, Wallet, Send } from "lucide-react";
+import { ShieldCheck, Package, Users, MessageSquare, BarChart3, Loader2, Trash2, ChevronDown, AlertTriangle, Ban, Headphones, Download, FileSpreadsheet, FileText, Wallet, Send, Banknote } from "lucide-react";
 import type { Tables } from "@/integrations/supabase/types";
 import { OrderChat } from "@/components/OrderChat";
 import { exportToExcel, exportToPDF } from "@/lib/exportUtils";
@@ -853,6 +853,7 @@ interface PayoutRow {
   transactionId?: string;
 }
 
+
 function PayoutManagementTab({
   orders,
   profiles,
@@ -871,18 +872,16 @@ function PayoutManagementTab({
   const [payModal, setPayModal] = useState<PayoutRow | null>(null);
   const [txId, setTxId] = useState("");
   const [confirming, setConfirming] = useState(false);
-  const [completedPayouts, setCompletedPayouts] = useState<Record<string, { txId: string }>>({});
+  const [localOrders, setLocalOrders] = useState(orders);
 
-  const methodLabels: Record<string, string> = {
-    bkash: "বিকাশ",
-    nagad: "নগদ",
-    rocket: "রকেট",
-    usdt: "USDT",
-    trx: "TRX",
-  };
+
+
+
+  // Sync localOrders when parent orders change
+  useEffect(() => { setLocalOrders(orders); }, [orders]);
 
   // Build payout rows from completed orders where seller needs to be paid
-  const payoutRows: PayoutRow[] = orders
+  const payoutRows: PayoutRow[] = localOrders
     .filter(o => o.status === "completed")
     .map(o => {
       const listing = listings.find(l => l.id === o.listing_id);
@@ -897,25 +896,62 @@ function PayoutManagementTab({
         paymentMethod: o.payment_method || "—",
         paymentInfo,
         date: new Date(o.created_at).toLocaleDateString("bn-BD"),
-        status: completedPayouts[o.id] ? "completed" : "pending",
-        transactionId: completedPayouts[o.id]?.txId,
+        status: ((o as any).payout_status === "completed" ? "completed" : "pending") as "pending" | "completed",
+        transactionId: (o as any).payout_transaction_id || undefined,
       };
     });
 
-  const handleConfirmPay = () => {
+  const handleConfirmPay = async () => {
     if (!payModal) return;
     if (!txId.trim() || txId.trim().length < 4) {
       toast({ title: "ত্রুটি", description: "সঠিক ট্রানজেকশন আইডি দিন।", variant: "destructive" });
       return;
     }
     setConfirming(true);
-    setTimeout(() => {
-      setCompletedPayouts(prev => ({ ...prev, [payModal.id]: { txId: txId.trim() } }));
-      setConfirming(false);
-      setPayModal(null);
-      setTxId("");
+
+    const { error } = await (supabase as any)
+      .from("orders")
+      .update({ payout_status: "completed", payout_transaction_id: txId.trim() })
+      .eq("id", payModal.id);
+
+    if (error) {
+      toast({ title: "ত্রুটি", description: error.message, variant: "destructive" });
+    } else {
+      setLocalOrders(prev => prev.map(o => o.id === payModal.id
+        ? { ...o, payout_status: "completed", payout_transaction_id: txId.trim() } as any
+        : o
+      ));
       toast({ title: "✅ পেআউট সম্পন্ন", description: `ট্রানজেকশন আইডি: ${txId.trim()}` });
-    }, 600);
+
+      // Send notification to seller
+      const shortId = payModal.id.slice(0, 8).toUpperCase();
+      await supabase.rpc("create_notification", {
+        _user_id: payModal.sellerId,
+        _title: "💰 পেমেন্ট পেয়েছেন",
+        _message: `আপনার অর্ডার #${shortId} এর পেমেন্ট ৳${payModal.amount.toLocaleString()} সফলভাবে পাঠানো হয়েছে। TxID: ${txId.trim()}`,
+        _type: "payout",
+        _reference_id: payModal.id,
+      });
+      // Add English version
+      const { data: notifData } = await supabase.from("notifications").select("id").eq("user_id", payModal.sellerId).eq("type", "payout" as any).order("created_at", { ascending: false }).limit(1);
+      if (notifData?.[0]) {
+        await (supabase as any).from("notifications").update({
+          title_en: "💰 Payment Received",
+          message_en: `Payment of ৳${payModal.amount.toLocaleString()} for order #${shortId} has been sent. TxID: ${txId.trim()}`,
+        }).eq("id", notifData[0].id);
+      }
+    }
+
+    setConfirming(false);
+    setPayModal(null);
+    setTxId("");
+  };
+  const methodLabels: Record<string, string> = {
+    bkash: "বিকাশ",
+    nagad: "নগদ",
+    rocket: "রকেট",
+    usdt: "USDT",
+    trx: "TRX",
   };
 
   return (
@@ -923,7 +959,7 @@ function PayoutManagementTab({
       <Card className="bg-card border-border">
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-primary" /> পেআউট ম্যানেজমেন্ট
+            <Wallet className="w-5 h-5 text-primary" /> অর্ডার পেআউট ম্যানেজমেন্ট
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -966,16 +1002,6 @@ function PayoutManagementTab({
                         </TableCell>
                         <TableCell>
                           <div className="flex items-center gap-2">
-                            <Button
-                              size="sm"
-                              variant="outline"
-                              className="h-7 text-xs gap-1"
-                              onClick={() => setExpandedOrder(expandedOrder === row.orderId ? null : row.orderId)}
-                            >
-                              <MessageSquare className="w-3 h-3" />
-                              চ্যাট
-                              <ChevronDown className={`w-3 h-3 transition-transform ${expandedOrder === row.orderId ? "rotate-180" : ""}`} />
-                            </Button>
                             {row.status === "pending" && (
                               <Button
                                 size="sm"
@@ -991,19 +1017,6 @@ function PayoutManagementTab({
                           </div>
                         </TableCell>
                       </TableRow>
-                      {expandedOrder === row.orderId && (
-                        <TableRow>
-                          <TableCell colSpan={7} className="p-4">
-                            <OrderChat
-                              orderId={row.orderId}
-                              buyerId={orders.find(o => o.id === row.orderId)?.buyer_id || ""}
-                              sellerId={row.sellerId}
-                              orderStatus="completed"
-                              isAdminView={true}
-                            />
-                          </TableCell>
-                        </TableRow>
-                      )}
                     </React.Fragment>
                   ))}
                 </TableBody>

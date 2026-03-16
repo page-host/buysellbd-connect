@@ -20,7 +20,7 @@ import {
 } from "lucide-react";
 import { OrderChat } from "@/components/OrderChat";
 import { OrderStatusCard } from "@/components/OrderStatusCard";
-import { WalletPayouts } from "@/components/WalletPayouts";
+
 import type { Tables } from "@/integrations/supabase/types";
 
 type Order = Tables<"orders">;
@@ -226,6 +226,14 @@ export default function UserDashboard() {
   const totalEarned = sellOrders.filter(o => o.status === "completed").reduce((s, o) => s + Number(o.amount), 0);
   const pendingCount = orders.filter(o => ["pending","payment_submitted"].includes(o.status)).length;
   const completedCount = orders.filter(o => o.status === "completed").length;
+  
+  // Pending payout balance: completed orders where payout not yet done
+  const pendingPayoutBalance = sellOrders
+    .filter(o => o.status === "completed" && (o as any).payout_status !== "completed")
+    .reduce((s, o) => s + Number(o.amount), 0);
+  const paidPayoutBalance = sellOrders
+    .filter(o => o.status === "completed" && (o as any).payout_status === "completed")
+    .reduce((s, o) => s + Number(o.amount), 0);
 
   return (
     <div className="min-h-screen bg-background">
@@ -252,11 +260,12 @@ export default function UserDashboard() {
 
         {/* Stats Cards - hide for admin */}
         {!isAdmin && (
-        <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
+        <div className="grid grid-cols-2 lg:grid-cols-5 gap-4 mb-8">
           {[
             { label: t("dash.total_spent"), value: `৳${totalSpent.toLocaleString()}`, icon: Wallet, color: "text-red-400", bg: "bg-red-500/10" },
             { label: t("dash.total_earned"), value: `৳${totalEarned.toLocaleString()}`, icon: TrendingUp, color: "text-green-400", bg: "bg-green-500/10" },
-            { label: t("dash.pending_orders"), value: pendingCount, icon: Clock, color: "text-yellow-400", bg: "bg-yellow-500/10" },
+            { label: "পেন্ডিং ব্যালেন্স", value: `৳${pendingPayoutBalance.toLocaleString()}`, icon: Clock, color: "text-orange-400", bg: "bg-orange-500/10" },
+            { label: t("dash.pending_orders"), value: pendingCount, icon: AlertCircle, color: "text-yellow-400", bg: "bg-yellow-500/10" },
             { label: t("dash.completed_orders"), value: completedCount, icon: CheckCircle2, color: "text-primary", bg: "bg-primary/10" },
           ].map((s, i) => (
             <Card key={i} className="bg-card border-border">
@@ -280,7 +289,7 @@ export default function UserDashboard() {
             <TabsTrigger value="password" className="gap-2"><Lock className="w-4 h-4" />{t("dash.password_tab")}</TabsTrigger>
             {!isAdmin && <TabsTrigger value="listings" className="gap-2"><ShoppingBag className="w-4 h-4" />{t("dash.my_listings_tab")} ({myListings.length})</TabsTrigger>}
             {!isAdmin && <TabsTrigger value="orders" className="gap-2"><Package className="w-4 h-4" />{t("dash.orders_tab")} ({orders.length})</TabsTrigger>}
-            {!isAdmin && <TabsTrigger value="wallet" className="gap-2"><Wallet className="w-4 h-4" />টাকা উত্তোলন</TabsTrigger>}
+            {!isAdmin && sellOrders.length > 0 && <TabsTrigger value="payouts" className="gap-2"><Wallet className="w-4 h-4" /> পেআউট ({sellOrders.filter(o => o.status === "completed").length})</TabsTrigger>}
           </TabsList>
 
           {/* PROFILE TAB */}
@@ -487,13 +496,84 @@ export default function UserDashboard() {
             </div>
           </TabsContent>
 
-          {/* WALLET & PAYOUTS TAB */}
-          <TabsContent value="wallet">
-            <WalletPayouts
-              totalEarned={totalEarned}
-              pendingPayout={sellOrders.filter(o => ["delivering", "delivered"].includes(o.status)).reduce((s, o) => s + Number(o.amount), 0)}
-            />
+          {/* PAYOUTS TAB */}
+          <TabsContent value="payouts">
+            <div className="space-y-4">
+              <div className="grid grid-cols-2 gap-4">
+                <Card className="bg-card border-border">
+                  <CardContent className="p-5 flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-orange-500/10">
+                      <Clock className="w-5 h-5 text-orange-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">পেন্ডিং পেআউট</p>
+                      <p className="text-xl font-bold text-foreground">৳{pendingPayoutBalance.toLocaleString()}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+                <Card className="bg-card border-border">
+                  <CardContent className="p-5 flex items-center gap-3">
+                    <div className="p-2.5 rounded-xl bg-green-500/10">
+                      <CheckCircle2 className="w-5 h-5 text-green-400" />
+                    </div>
+                    <div>
+                      <p className="text-xs text-muted-foreground">পেমেন্ট পেয়েছেন</p>
+                      <p className="text-xl font-bold text-foreground">৳{paidPayoutBalance.toLocaleString()}</p>
+                    </div>
+                  </CardContent>
+                </Card>
+              </div>
+
+              {sellOrders.filter(o => o.status === "completed").length === 0 ? (
+                <Card className="bg-card border-border">
+                  <CardContent className="py-12 text-center">
+                    <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                    <p className="text-muted-foreground">কোনো পেআউট নেই।</p>
+                  </CardContent>
+                </Card>
+              ) : (
+                sellOrders
+                  .filter(o => o.status === "completed")
+                  .map(order => {
+                    const isPaid = (order as any).payout_status === "completed";
+                    const txId = (order as any).payout_transaction_id;
+                    const shortId = order.id.slice(0, 8).toUpperCase();
+                    return (
+                      <Card key={order.id} className={`bg-card border-border ${isPaid ? 'opacity-70' : ''}`}>
+                        <CardContent className="p-4">
+                          <div className="flex items-center justify-between gap-3 flex-wrap">
+                            <div className="flex-1 min-w-0">
+                              <p className="text-xs text-muted-foreground mb-1">অর্ডার #{shortId}</p>
+                              <p className="text-lg font-extrabold text-primary">৳{Number(order.amount).toLocaleString()}</p>
+                              <p className="text-xs text-muted-foreground mt-1">
+                                {new Date(order.created_at).toLocaleDateString("bn-BD")}
+                              </p>
+                            </div>
+                            <div className="text-right">
+                              {isPaid ? (
+                                <div>
+                                  <Badge variant="outline" className="text-xs bg-green-500/20 text-green-500 border-green-500/30 mb-1">
+                                    <CheckCircle2 className="w-3 h-3 mr-1" /> পেমেন্ট সম্পন্ন
+                                  </Badge>
+                                  {txId && (
+                                    <p className="text-xs text-muted-foreground font-mono">TxID: {txId}</p>
+                                  )}
+                                </div>
+                              ) : (
+                                <Badge variant="outline" className="text-xs bg-orange-500/20 text-orange-500 border-orange-500/30">
+                                  <Clock className="w-3 h-3 mr-1" /> পেন্ডিং
+                                </Badge>
+                              )}
+                            </div>
+                          </div>
+                        </CardContent>
+                      </Card>
+                    );
+                  })
+              )}
+            </div>
           </TabsContent>
+
         </Tabs>
       </div>
       <Footer />
