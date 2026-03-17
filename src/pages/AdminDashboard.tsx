@@ -849,6 +849,7 @@ interface PayoutRow {
   paymentMethod: string;
   paymentInfo: string;
   date: string;
+  rawDate: string;
   status: "pending" | "completed";
   transactionId?: string;
 }
@@ -873,15 +874,16 @@ function PayoutManagementTab({
   const [txId, setTxId] = useState("");
   const [confirming, setConfirming] = useState(false);
   const [localOrders, setLocalOrders] = useState(orders);
-
-
-
+  const [filterSeller, setFilterSeller] = useState<string>("all");
+  const [filterStatus, setFilterStatus] = useState<string>("all");
+  const [filterMethod, setFilterMethod] = useState<string>("all");
+  const [filterDate, setFilterDate] = useState<string>("");
 
   // Sync localOrders when parent orders change
   useEffect(() => { setLocalOrders(orders); }, [orders]);
 
   // Build payout rows from completed orders where seller needs to be paid
-  const payoutRows: PayoutRow[] = localOrders
+  const allPayoutRows: PayoutRow[] = localOrders
     .filter(o => o.status === "completed")
     .map(o => {
       const listing = listings.find(l => l.id === o.listing_id);
@@ -896,10 +898,27 @@ function PayoutManagementTab({
         paymentMethod: o.payment_method || "—",
         paymentInfo,
         date: new Date(o.created_at).toLocaleDateString("bn-BD"),
+        rawDate: o.created_at,
         status: ((o as any).payout_status === "completed" ? "completed" : "pending") as "pending" | "completed",
         transactionId: (o as any).payout_transaction_id || undefined,
       };
     });
+
+  // Unique sellers and methods for filter dropdowns
+  const uniqueSellers = Array.from(new Map(allPayoutRows.map(r => [r.sellerId, r.sellerName])).entries());
+  const uniqueMethods = Array.from(new Set(allPayoutRows.map(r => r.paymentMethod)));
+
+  // Apply filters
+  const payoutRows = allPayoutRows.filter(r => {
+    if (filterSeller !== "all" && r.sellerId !== filterSeller) return false;
+    if (filterStatus !== "all" && r.status !== filterStatus) return false;
+    if (filterMethod !== "all" && r.paymentMethod !== filterMethod) return false;
+    if (filterDate) {
+      const rowDate = new Date(r.rawDate).toISOString().split("T")[0];
+      if (rowDate !== filterDate) return false;
+    }
+    return true;
+  });
 
   const handleConfirmPay = async () => {
     if (!payModal) return;
@@ -983,6 +1002,68 @@ function PayoutManagementTab({
           )}
         </CardHeader>
         <CardContent>
+          {/* Filters */}
+          {allPayoutRows.length > 0 && (
+            <div className="flex flex-wrap gap-3 mb-4">
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">বিক্রেতা</Label>
+                <Select value={filterSeller} onValueChange={setFilterSeller}>
+                  <SelectTrigger className="h-8 w-[160px] text-xs">
+                    <SelectValue placeholder="সব বিক্রেতা" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">সব বিক্রেতা</SelectItem>
+                    {uniqueSellers.map(([id, name]) => (
+                      <SelectItem key={id} value={id}>{name}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">স্ট্যাটাস</Label>
+                <Select value={filterStatus} onValueChange={setFilterStatus}>
+                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                    <SelectValue placeholder="সব স্ট্যাটাস" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">সব স্ট্যাটাস</SelectItem>
+                    <SelectItem value="pending">পেন্ডিং</SelectItem>
+                    <SelectItem value="completed">সম্পন্ন</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">পেমেন্ট মেথড</Label>
+                <Select value={filterMethod} onValueChange={setFilterMethod}>
+                  <SelectTrigger className="h-8 w-[130px] text-xs">
+                    <SelectValue placeholder="সব মেথড" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">সব মেথড</SelectItem>
+                    {uniqueMethods.map(m => (
+                      <SelectItem key={m} value={m}>{methodLabels[m] || m}</SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
+              </div>
+              <div className="flex flex-col gap-1">
+                <Label className="text-xs text-muted-foreground">তারিখ</Label>
+                <Input
+                  type="date"
+                  className="h-8 w-[150px] text-xs"
+                  value={filterDate}
+                  onChange={e => setFilterDate(e.target.value)}
+                />
+              </div>
+              {(filterSeller !== "all" || filterStatus !== "all" || filterMethod !== "all" || filterDate) && (
+                <div className="flex items-end">
+                  <Button variant="ghost" size="sm" className="h-8 text-xs text-muted-foreground" onClick={() => { setFilterSeller("all"); setFilterStatus("all"); setFilterMethod("all"); setFilterDate(""); }}>
+                    ✕ ফিল্টার রিসেট
+                  </Button>
+                </div>
+              )}
+            </div>
+          )}
           {payoutRows.length === 0 ? (
             <div className="py-12 text-center">
               <Wallet className="w-10 h-10 text-muted-foreground mx-auto mb-3 opacity-50" />

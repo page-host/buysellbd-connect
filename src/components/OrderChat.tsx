@@ -87,6 +87,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const [reportMessage, setReportMessage] = useState("");
   const [reportSending, setReportSending] = useState(false);
   const [chatOpenLocal, setChatOpenLocal] = useState(false);
+  const [profileNames, setProfileNames] = useState<Record<string, string>>({});
   // Use controlled state if provided, otherwise local
   const chatOpen = openChatId !== undefined ? openChatId === orderId : chatOpenLocal;
   const setChatOpen = (open: boolean) => {
@@ -103,6 +104,26 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   const isBuyer = user?.id === buyerId;
   const isSeller = user?.id === sellerId;
   const isParticipant = isBuyer || isSeller;
+
+  // Fetch profile names for buyer and seller
+  useEffect(() => {
+    const fetchProfiles = async () => {
+      const userIds = [buyerId, sellerId].filter(Boolean);
+      if (userIds.length === 0) return;
+      const { data } = await supabase
+        .from("profiles")
+        .select("user_id, full_name")
+        .in("user_id", userIds);
+      if (data) {
+        const names: Record<string, string> = {};
+        data.forEach((p) => {
+          if (p.full_name) names[p.user_id] = p.full_name;
+        });
+        setProfileNames(names);
+      }
+    };
+    fetchProfiles();
+  }, [buyerId, sellerId]);
 
   const hasCredentials = messages.some(m => m.is_credentials);
   const isCompleted = ["completed", "refunded", "cancelled"].includes(orderStatus);
@@ -366,9 +387,8 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
   };
 
   const getSenderLabel = (senderId: string) => {
-    if (senderId === buyerId) return "ক্রেতা";
-    if (senderId === sellerId) return "বিক্রেতা";
-    return "অ্যাডমিন";
+    if (senderId !== buyerId && senderId !== sellerId) return "অ্যাডমিন";
+    return profileNames[senderId] || (senderId === buyerId ? "ক্রেতা" : "বিক্রেতা");
   };
 
   const getMessageStatus = (msg: Message) => {

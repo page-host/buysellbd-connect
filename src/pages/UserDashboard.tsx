@@ -84,6 +84,10 @@ export default function UserDashboard() {
   const [showNewPw, setShowNewPw] = useState(false);
   const [savingPw, setSavingPw] = useState(false);
 
+  // Payout date filter
+  const [payoutDateFrom, setPayoutDateFrom] = useState("");
+  const [payoutDateTo, setPayoutDateTo] = useState("");
+
   const initialLoadDone = useRef(false);
 
   useEffect(() => {
@@ -524,53 +528,91 @@ export default function UserDashboard() {
                 </Card>
               </div>
 
-              {sellOrders.filter(o => o.status === "completed").length === 0 ? (
-                <Card className="bg-card border-border">
-                  <CardContent className="py-12 text-center">
-                    <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
-                    <p className="text-muted-foreground">কোনো পেআউট নেই।</p>
-                  </CardContent>
-                </Card>
-              ) : (
-                sellOrders
+              {/* Date Filter */}
+              <div className="flex flex-wrap items-center gap-3">
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">তারিখ থেকে:</label>
+                  <Input
+                    type="date"
+                    className="w-auto h-9 text-xs bg-card border-border"
+                    value={payoutDateFrom}
+                    onChange={e => setPayoutDateFrom(e.target.value)}
+                  />
+                </div>
+                <div className="flex items-center gap-2">
+                  <label className="text-xs text-muted-foreground whitespace-nowrap">তারিখ পর্যন্ত:</label>
+                  <Input
+                    type="date"
+                    className="w-auto h-9 text-xs bg-card border-border"
+                    value={payoutDateTo}
+                    onChange={e => setPayoutDateTo(e.target.value)}
+                  />
+                </div>
+                {(payoutDateFrom || payoutDateTo) && (
+                  <Button variant="ghost" size="sm" className="h-9 text-xs" onClick={() => { setPayoutDateFrom(""); setPayoutDateTo(""); }}>
+                    রিসেট
+                  </Button>
+                )}
+              </div>
+
+              {(() => {
+                const completedSellOrders = sellOrders
                   .filter(o => o.status === "completed")
-                  .map(order => {
-                    const isPaid = (order as any).payout_status === "completed";
-                    const txId = (order as any).payout_transaction_id;
-                    const shortId = order.id.slice(0, 8).toUpperCase();
-                    return (
-                      <Card key={order.id} className={`bg-card border-border ${isPaid ? 'opacity-70' : ''}`}>
-                        <CardContent className="p-4">
-                          <div className="flex items-center justify-between gap-3 flex-wrap">
-                            <div className="flex-1 min-w-0">
-                              <p className="text-xs text-muted-foreground mb-1">অর্ডার #{shortId}</p>
-                              <p className="text-lg font-extrabold text-primary">৳{Number(order.amount).toLocaleString()}</p>
-                              <p className="text-xs text-muted-foreground mt-1">
-                                {new Date(order.created_at).toLocaleDateString("bn-BD")}
-                              </p>
-                            </div>
-                            <div className="text-right">
-                              {isPaid ? (
-                                <div>
-                                  <Badge variant="outline" className="text-xs bg-green-500/20 text-green-500 border-green-500/30 mb-1">
-                                    <CheckCircle2 className="w-3 h-3 mr-1" /> পেমেন্ট সম্পন্ন
-                                  </Badge>
-                                  {txId && (
-                                    <p className="text-xs text-muted-foreground font-mono">TxID: {txId}</p>
-                                  )}
-                                </div>
-                              ) : (
-                                <Badge variant="outline" className="text-xs bg-orange-500/20 text-orange-500 border-orange-500/30">
-                                  <Clock className="w-3 h-3 mr-1" /> পেন্ডিং
-                                </Badge>
-                              )}
-                            </div>
+                  .filter(o => {
+                    const orderDate = new Date(o.created_at).toISOString().split("T")[0];
+                    if (payoutDateFrom && orderDate < payoutDateFrom) return false;
+                    if (payoutDateTo && orderDate > payoutDateTo) return false;
+                    return true;
+                  });
+
+                if (completedSellOrders.length === 0) {
+                  return (
+                    <Card className="bg-card border-border">
+                      <CardContent className="py-12 text-center">
+                        <Wallet className="w-12 h-12 text-muted-foreground mx-auto mb-4 opacity-50" />
+                        <p className="text-muted-foreground">{payoutDateFrom || payoutDateTo ? "এই তারিখে কোনো পেআউট নেই।" : "কোনো পেআউট নেই।"}</p>
+                      </CardContent>
+                    </Card>
+                  );
+                }
+
+                return completedSellOrders.map(order => {
+                  const isPaid = (order as any).payout_status === "completed";
+                  const txId = (order as any).payout_transaction_id;
+                  const shortId = order.id.slice(0, 8).toUpperCase();
+                  return (
+                    <Card key={order.id} className={`bg-card border-border ${isPaid ? 'opacity-70' : ''}`}>
+                      <CardContent className="p-4">
+                        <div className="flex items-center justify-between gap-3 flex-wrap">
+                          <div className="flex-1 min-w-0">
+                            <p className="text-xs text-muted-foreground mb-1">অর্ডার #{shortId}</p>
+                            <p className="text-lg font-extrabold text-primary">৳{Number(order.amount).toLocaleString()}</p>
+                            <p className="text-xs text-muted-foreground mt-1">
+                              {new Date(order.created_at).toLocaleDateString("bn-BD")}
+                            </p>
                           </div>
-                        </CardContent>
-                      </Card>
-                    );
-                  })
-              )}
+                          <div className="text-right">
+                            {isPaid ? (
+                              <div>
+                                <Badge variant="outline" className="text-xs bg-green-500/20 text-green-500 border-green-500/30 mb-1">
+                                  <CheckCircle2 className="w-3 h-3 mr-1" /> পেমেন্ট সম্পন্ন
+                                </Badge>
+                                {txId && (
+                                  <p className="text-xs text-muted-foreground font-mono">TxID: {txId}</p>
+                                )}
+                              </div>
+                            ) : (
+                              <Badge variant="outline" className="text-xs bg-orange-500/20 text-orange-500 border-orange-500/30">
+                                <Clock className="w-3 h-3 mr-1" /> পেন্ডিং
+                              </Badge>
+                            )}
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  );
+                });
+              })()}
             </div>
           </TabsContent>
 
