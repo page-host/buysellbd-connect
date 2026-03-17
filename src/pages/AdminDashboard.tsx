@@ -954,13 +954,33 @@ function PayoutManagementTab({
     trx: "TRX",
   };
 
+  const payoutColumns = [
+    { header: "Seller Name", key: "sellerName" },
+    { header: "Amount", key: "amount", transform: (v: any) => `BDT ${Number(v).toLocaleString("en-US")}` },
+    { header: "Payment Method", key: "paymentMethod" },
+    { header: "Account Number", key: "paymentInfo" },
+    { header: "Date", key: "date" },
+    { header: "Status", key: "status", transform: (v: any) => v === "completed" ? "Completed" : "Pending" },
+    { header: "Transaction ID", key: "transactionId", transform: (v: any) => v || "-" },
+  ];
+
   return (
     <>
       <Card className="bg-card border-border">
-        <CardHeader>
+        <CardHeader className="flex flex-row items-center justify-between">
           <CardTitle className="flex items-center gap-2">
             <Wallet className="w-5 h-5 text-primary" /> অর্ডার পেআউট ম্যানেজমেন্ট
           </CardTitle>
+          {payoutRows.length > 0 && (
+            <div className="flex items-center gap-2">
+              <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => exportToExcel(payoutRows, payoutColumns, "payouts-export")}>
+                <FileSpreadsheet className="w-3.5 h-3.5" /> Excel
+              </Button>
+              <Button size="sm" variant="outline" className="text-xs gap-1.5 h-8" onClick={() => exportToPDF(payoutRows, payoutColumns, "পেআউট ম্যানেজমেন্ট", "payouts-export")}>
+                <FileText className="w-3.5 h-3.5" /> PDF
+              </Button>
+            </div>
+          )}
         </CardHeader>
         <CardContent>
           {payoutRows.length === 0 ? (

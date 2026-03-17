@@ -16,8 +16,9 @@ export function exportToExcel(data: any[], columns: ExportColumn[], filename: st
 
   const ws = XLSX.utils.json_to_sheet(rows);
   const wb = XLSX.utils.book_new();
+  wb.Props = { Title: filename };
   XLSX.utils.book_append_sheet(wb, ws, "Data");
-  XLSX.writeFile(wb, `${filename}.xlsx`);
+  XLSX.writeFile(wb, `${filename}.xlsx`, { bookType: "xlsx", type: "binary" });
 }
 
 export async function exportToPDF(data: any[], columns: ExportColumn[], title: string, filename: string) {
