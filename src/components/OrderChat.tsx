@@ -436,7 +436,7 @@ export function OrderChat({ orderId, buyerId, sellerId, orderStatus, onOrderComp
           <div className="w-7 h-7 rounded-full bg-primary/10 flex items-center justify-center">
             <MessageSquareText className="w-3.5 h-3.5 text-primary" />
           </div>
-          <span>অর্ডার চ্যাট</span>
+          <span>{isBuyer ? (profileNames[sellerId] || "বিক্রেতা") : isSeller ? (profileNames[buyerId] || "ক্রেতা") : "অর্ডার চ্যাট"}</span>
           {isAdminView && <Badge variant="secondary" className="text-[10px] rounded-full">শুধু দেখার জন্য</Badge>}
           {isCompleted && (
             <Badge variant="outline" className="text-[10px] rounded-full bg-emerald-500/10 text-emerald-500 border-emerald-500/30 gap-0.5">
