@@ -8,6 +8,13 @@ import { toast } from "@/hooks/use-toast";
 import { isDisposableEmail } from "@/lib/disposable-emails";
 import { Mail, Lock, User, Eye, EyeOff } from "lucide-react";
 import { useLanguage } from "@/contexts/LanguageContext";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogDescription,
+} from "@/components/ui/dialog";
 import logo from "@/assets/eye.png";
 
 const Signup = () => {
@@ -16,6 +23,7 @@ const Signup = () => {
   const [password, setPassword] = useState("");
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
   const navigate = useNavigate();
   const { t, lang } = useLanguage();
 
@@ -41,8 +49,7 @@ const Signup = () => {
       toast({ title: "সাইন আপ সফল!" });
       navigate("/");
     } else {
-      toast({ title: "সাইন আপ সফল!", description: "লগইন করুন।" });
-      navigate("/login");
+      setShowConfirmDialog(true);
     }
   };
 
@@ -121,6 +128,45 @@ const Signup = () => {
           </p>
         </div>
       </div>
+
+      {/* Email Confirmation Dialog */}
+      <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+        <DialogContent className="sm:max-w-md text-center">
+          <DialogHeader className="items-center">
+            <div className="mx-auto mb-4 flex h-16 w-16 items-center justify-center rounded-full bg-primary/10">
+              <Mail className="h-8 w-8 text-primary" />
+            </div>
+            <DialogTitle className="text-xl">
+              {lang === "bn" ? "📧 ইমেইল যাচাই করুন" : "📧 Verify Your Email"}
+            </DialogTitle>
+            <DialogDescription asChild>
+              <div className="text-base mt-2 space-y-3">
+                <p>
+                  {lang === "bn"
+                    ? `আমরা ${email} এ একটি যাচাই লিংক পাঠিয়েছি।`
+                    : `We've sent a verification link to ${email}.`}
+                </p>
+                <p className="text-muted-foreground text-sm">
+                  {lang === "bn"
+                    ? "আপনার ইমেইল চেক করুন এবং লিংকে ক্লিক করে অ্যাকাউন্ট সক্রিয় করুন। ইমেইল না পেলে স্প্যাম ফোল্ডারও দেখুন!"
+                    : "Check your inbox and click the link to activate your account. Don't forget to check your spam folder!"}
+                </p>
+              </div>
+            </DialogDescription>
+          </DialogHeader>
+          <div className="mt-4">
+            <Button
+              className="w-full gradient-primary text-primary-foreground border-0 font-semibold"
+              onClick={() => {
+                setShowConfirmDialog(false);
+                navigate("/login");
+              }}
+            >
+              {lang === "bn" ? "বুঝেছি, লগইন পেজে যাই" : "Got it, go to Login"}
+            </Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };

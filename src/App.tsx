@@ -20,6 +20,7 @@ import AdminDashboard from "./pages/AdminDashboard";
 import UserDashboard from "./pages/UserDashboard";
 import PublicProfile from "./pages/PublicProfile";
 import { SupportChat } from "./components/SupportChat";
+import { EmailConfirmedDialog } from "./components/EmailConfirmedDialog";
 
 const queryClient = new QueryClient();
 
@@ -49,6 +50,7 @@ const App = () => (
               <Route path="*" element={<NotFound />} />
             </Routes>
             <SupportChat />
+            <EmailConfirmedDialog />
           </AuthProvider>
         </BrowserRouter>
       </TooltipProvider>
